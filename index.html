@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Inter --> 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tesseract.js for Client-side OCR Label Scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         .canvas-container { touch-action: none; }
@@ -95,57 +97,89 @@
                 <div id="step-1" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
                     <div class="border-b border-slate-100 pb-4 flex justify-between items-center">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Step 1: 醫院與設備資料</h2>
-                            <p class="text-xs text-slate-500">輸入巡查地點、擔架床編號及巡查人員名稱</p>
+                            <h2 class="text-lg font-bold text-slate-900">Step 1: 醫院、車牌與設備資料</h2>
+                            <p class="text-xs text-slate-500">選取醫院 ➔ 車牌號碼 ➔ 擔架床編號，或拍照自動辨識標籤</p>
                         </div>
                         <span class="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-medium">表單編號 #<span id="form-ref-no">INS-2026-001</span></span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- OCR Label Scanner Banner -->
+                    <div class="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-lg border border-teal-500/30">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>擔架床銘牌 Label 相片智能辨識 (OCR)</span>
+                                    <span class="bg-teal-500 text-slate-950 text-[10px] px-2 py-0.5 rounded font-black">AI 識別</span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">影下床頭標籤（如 "26NG0903162"），自動帶出對應醫院、車牌及床號</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 w-full md:w-auto">
+                            <input type="file" id="label-ocr-file" accept="image/*" capture="environment" onchange="processLabelOCR(event)" class="hidden">
+                            <button type="button" onclick="document.getElementById('label-ocr-file').click()" class="flex-1 md:flex-initial px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg transition flex items-center justify-center space-x-1.5 shadow">
+                                <i class="fa-solid fa-expand"></i>
+                                <span>拍照辨識銘牌</span>
+                            </button>
+                            <button type="button" onclick="simulateDemoOCR()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold text-xs rounded-lg transition border border-slate-700 flex items-center justify-center space-x-1">
+                                <i class="fa-solid fa-vial"></i>
+                                <span>載入Demo標籤</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- 1. Hospital Selection -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">目標醫院 / 機構名稱 <span class="text-red-500">*</span></label>
-                            <select id="hospital-select" onchange="onHospitalChange(this)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
-                                <option value="瑪麗醫院 (Queen Mary Hospital)">瑪麗醫院 (Queen Mary Hospital)</option>
-                                <option value="威爾斯親王醫院 (Prince of Wales Hospital)">威爾斯親王醫院 (Prince of Wales Hospital)</option>
-                                <option value="伊利沙伯醫院 (Queen Elizabeth Hospital)">伊利沙伯醫院 (Queen Elizabeth Hospital)</option>
-                                <option value="養和醫院 (HK Sanatorium & Hospital)">養和醫院 (HK Sanatorium & Hospital)</option>
-                                <option value="廣華醫院 (Kwong Wah Hospital)">廣華醫院 (Kwong Wah Hospital)</option>
-                                <option value="custom">+ 其他自訂醫院...</option>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">1. 目標醫院 / 機構名稱 <span class="text-red-500">*</span></label>
+                            <select id="hospital-select" onchange="handleHospitalChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                                <!-- Populated dynamically -->
                             </select>
-                            <input type="text" id="hospital-custom" placeholder="請輸入醫院名稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
+                            <input type="text" id="hospital-custom" placeholder="請輸入自訂醫院名稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
                         </div>
 
+                        <!-- 2. Vehicle License Plate Selection -->
                         <div>
                             <div class="flex justify-between items-center mb-1">
-                                <label class="block text-sm font-medium text-slate-700">擔架床編號 (SN#) <span class="text-red-500">*</span></label>
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-xs text-teal-600 cursor-pointer hover:underline font-semibold" onclick="showPresetSnList()">選擇預設床號</span>
-                                    <span class="text-xs text-slate-400">|</span>
-                                    <span class="text-xs text-teal-600 cursor-pointer hover:underline font-semibold" onclick="promptAddNewSn()"><i class="fa-solid fa-plus text-[10px]"></i> 新增床號</span>
-                                </div>
+                                <label class="block text-sm font-medium text-slate-700">2. 車牌號碼 <span class="text-red-500">*</span></label>
+                                <button type="button" onclick="promptAddNewVehicle()" class="text-xs text-teal-600 hover:underline font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i> 新增車牌
+                                </button>
                             </div>
-                            <div class="relative">
-                                <input type="text" id="stretcher-id" value="ST-QM-082" placeholder="例: ST-001" class="w-full rounded-xl border border-slate-300 pl-4 pr-24 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none uppercase font-mono font-bold">
-                                <div class="absolute right-2 top-2 flex space-x-1">
-                                    <button type="button" onclick="simulateQRScan()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition" title="模擬掃描QR Code">
-                                        <i class="fa-solid fa-qrcode mr-1"></i>掃碼
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Dropdown for pre-set SN selection -->
-                            <select id="preset-sn-select" onchange="applyPresetSn(this.value)" class="mt-2 hidden w-full rounded-xl border border-teal-200 bg-teal-50 text-teal-900 px-3 py-1.5 text-xs font-mono font-semibold focus:outline-none">
+                            <select id="vehicle-select" onchange="handleVehicleChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm font-mono font-bold text-slate-800">
                                 <!-- Populated dynamically -->
                             </select>
                         </div>
 
+                        <!-- 3. Stretcher Serial Number Selection -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-sm font-medium text-slate-700">3. 擔架床編號 (SN#) <span class="text-red-500">*</span></label>
+                                <button type="button" onclick="promptAddNewStretcher()" class="text-xs text-teal-600 hover:underline font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i> 新增床號
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="stretcher-id" onchange="handleStretcherInputChange(this.value)" placeholder="例: 26NG0903162" class="w-full rounded-xl border border-slate-300 pl-4 pr-10 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none uppercase font-mono font-bold text-sm">
+                                <i class="fa-solid fa-barcode absolute right-3 top-3 text-slate-400"></i>
+                            </div>
+                            <select id="preset-sn-select" onchange="handleStretcherSelectChange(this.value)" class="mt-2 w-full rounded-xl border border-teal-200 bg-teal-50 text-teal-900 px-3 py-1.5 text-xs font-mono font-semibold focus:outline-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-100">
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">巡查人員 (工程/外勤) <span class="text-red-500">*</span></label>
-                            <input type="text" id="inspector-name" value="陳大文 (Technician A)" placeholder="請輸入姓名" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
+                            <input type="text" id="inspector-name" value="陳大文 (Technician A)" placeholder="請輸入姓名" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">檢查日期與時間</label>
-                            <input type="datetime-local" id="inspection-date" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
+                            <input type="datetime-local" id="inspection-date" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
                         </div>
                     </div>
 
@@ -311,6 +345,7 @@
                             <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
                                 <th class="p-3">報告編號 / 日期</th>
                                 <th class="p-3">目標醫院</th>
+                                <th class="p-3">車牌號碼</th>
                                 <th class="p-3">床號 (SN#)</th>
                                 <th class="p-3">狀態</th>
                                 <th class="p-3">現場相片</th>
@@ -338,7 +373,67 @@
 
     </main>
 
-    <!-- Checklist Manager Modal (Top level for clean z-index) -->
+    <!-- Stretcher Reassignment Alert Modal -->
+    <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-amber-200">
+            <div class="flex items-center space-x-3 text-amber-600">
+                <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-xl flex-shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-900">擔架床所屬車輛異動提示</h3>
+                    <p class="text-xs text-amber-700 font-medium">檢測到此擔架床原本屬於另一台車輛</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">擔架床編號：</span>
+                    <span id="reassign-sn" class="font-bold font-mono text-teal-700">26NG0903162</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">原屬車輛/醫院：</span>
+                    <span id="reassign-old-loc" class="font-bold text-slate-800">AM-1234 (瑪麗醫院)</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-200 pt-2">
+                    <span class="text-slate-500">新調配車輛/醫院：</span>
+                    <span id="reassign-new-loc" class="font-bold text-rose-600">AM-5678 (瑪麗醫院)</span>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-500 leading-relaxed">
+                確定要將此擔架床的歸屬車輛更新至現時選取之車輛嗎？更新後，此床號將自動綁定至新車牌。
+            </p>
+
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="cancelReassignment()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">
+                    取消變更
+                </button>
+                <button type="button" onclick="confirmReassignment()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition">
+                    確定更新綁定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OCR Scanning Loading Modal -->
+    <div id="ocr-loading-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-200">
+            <div class="w-14 h-14 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-2xl animate-spin">
+                <i class="fa-solid fa-spinner"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-base text-slate-900">AI 銘牌相片辨識中...</h3>
+                <p id="ocr-status-text" class="text-xs text-slate-500 mt-1">正在分析圖片中的 SN 號碼...</p>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div id="ocr-progress-bar" class="bg-teal-600 h-2 rounded-full transition-all duration-200 w-1/3"></div>
+            </div>
+            <p class="text-[11px] text-slate-400">尋找以 "2" 開頭的 10-11 位擔架床編號...</p>
+        </div>
+    </div>
+
+    <!-- Checklist Manager Modal -->
     <div id="checklist-manager-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -423,7 +518,7 @@
         </div>
     </div>
 
-    <!-- Google Drive Config & Setup Guide Modal -->
+    <!-- Google Drive Config Modal -->
     <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -453,79 +548,86 @@
     </div>
 
     <script>
-        // Preset Stretcher Serial Numbers mapped to Hospitals
-        // 💡 可以在此處新增貴公司的預設醫院與床號對應表：
-        const defaultHospitalSnPresets = {
-            "瑪麗醫院 (Queen Mary Hospital)": ["ST-QM-082", "ST-QM-083", "ST-QM-105", "ST-QM-210"],
-            "威爾斯親王醫院 (Prince of Wales Hospital)": ["ST-PWH-104", "ST-PWH-105", "ST-PWH-201"],
-            "伊利沙伯醫院 (Queen Elizabeth Hospital)": ["ST-QEH-019", "ST-QEH-022", "ST-QEH-088"],
-            "養和醫院 (HK Sanatorium & Hospital)": ["ST-HKSH-005", "ST-HKSH-012"],
-            "廣華醫院 (Kwong Wah Hospital)": ["ST-KWH-031", "ST-KWH-045"]
+        // 1. Initial Data Hierarchy: Hospital -> Vehicle License Plate -> Array of Stretcher SNs
+        const initialDataMap = {
+            "瑪麗醫院 (Queen Mary Hospital)": {
+                "AM-1234": ["26NG0903162", "26NG0903163"],
+                "AM-5678": ["26NG0812901", "26NG0812902"]
+            },
+            "威爾斯親王醫院 (Prince of Wales Hospital)": {
+                "A-888": ["26PWH104011", "26PWH104012"],
+                "A-999": ["26PWH201015"]
+            },
+            "伊利沙伯醫院 (Queen Elizabeth Hospital)": {
+                "F-102": ["26QEH019001", "26QEH022002"]
+            },
+            "養和醫院 (HK Sanatorium & Hospital)": {
+                "HK-001": ["26HKSH00501"]
+            },
+            "廣華醫院 (Kwong Wah Hospital)": {
+                "KW-101": ["26KWH031001"]
+            }
         };
 
-        let hospitalSnPresets = {};
-
-        function loadSnPresets() {
-            try {
-                const saved = localStorage.getItem('stretcher_sn_presets');
-                if (saved) {
-                    hospitalSnPresets = JSON.parse(saved);
-                } else {
-                    hospitalSnPresets = JSON.parse(JSON.stringify(defaultHospitalSnPresets));
-                }
-            } catch (e) {
-                hospitalSnPresets = JSON.parse(JSON.stringify(defaultHospitalSnPresets));
+        // Default Checklist Categories
+        const defaultChecklistCategories = [
+            {
+                category: "1. 輪軸及煞車系統 (Wheel & Brake System)",
+                items: [
+                    { id: "item_wheel_roll", name: "腳輪順暢度 (無異響 / 無磨損卡死)" },
+                    { id: "item_brake_lock", name: "中央煞車鎖定功能 (煞車固實不滑移)" },
+                    { id: "item_steer_lock", name: "方向鎖定功能 (Steering Lock)" }
+                ]
+            },
+            {
+                category: "2. 床體升降與結構 (Hydraulic & Frame)",
+                items: [
+                    { id: "item_height_adj", name: "液壓升降機制 (High-Low Hydraulics)" },
+                    { id: "item_trend_tilt", name: "頭高腳低/腳高頭低傾斜 (Trendelenburg)" },
+                    { id: "item_backrest", name: "背板升降氣壓棒 (Backrest Pneumatic Springs)" }
+                ]
+            },
+            {
+                category: "3. 安全護欄與床墊 (Rails & Mattress)",
+                items: [
+                    { id: "item_side_rails", name: "兩側折疊護欄 (Side Rails Lock)" },
+                    { id: "item_mattress_cond", name: "防液體床墊皮套 (無破損/消毒良好)" },
+                    { id: "item_belts", name: "病患固定安全帶 (Patient Restraint Belts)" }
+                ]
+            },
+            {
+                category: "4. 附屬配件 (Accessories)",
+                items: [
+                    { id: "item_iv_pole", name: "點滴架 / IV Pole 伸縮正常" },
+                    { id: "item_oxygen_holder", name: "氧氣筒固定架 (Oxygen Tank Holder)" }
+                ]
             }
-        }
+        ];
 
-        function saveSnPresets() {
-            try {
-                localStorage.setItem('stretcher_sn_presets', JSON.stringify(hospitalSnPresets));
-            } catch (e) {
-                console.warn("Unable to save SN presets");
-            }
-        }
-
-        function promptAddNewSn() {
-            const hosp = getHospitalValue();
-            const newSn = prompt(`請輸入要在 [${hosp}] 新增的擔架床編號 (SN#):`);
-            if (newSn && newSn.trim()) {
-                const formattedSn = newSn.trim().toUpperCase();
-                if (!hospitalSnPresets[hosp]) {
-                    hospitalSnPresets[hosp] = [];
-                }
-                if (!hospitalSnPresets[hosp].includes(formattedSn)) {
-                    hospitalSnPresets[hosp].push(formattedSn);
-                    saveSnPresets();
-                    updateSnPresetDropdown(hosp);
-                    document.getElementById('stretcher-id').value = formattedSn;
-                    showToast(`已新增並選取床號: ${formattedSn}`);
-                } else {
-                    showToast(`床號 ${formattedSn} 已存在於列表中`, "error");
-                }
-            }
-        }
-
-        // Active Checklist Categories (Loaded from LocalStorage or default)
+        // Global State Variables
+        let dbMap = {};
         let activeChecklistCategories = [];
-
-        // State Storage
         let currentStep = 1;
         let uploadedPhotos = [];
         let isSigning = false;
         let signatureCanvas, signatureCtx;
         let inspectionHistory = [];
 
-        // App Initialization
+        // Temporary holding state for Reassignment Modal confirmation
+        let pendingReassign = null;
+
+        // App Entry Point
         window.onload = function() {
             initDate();
-            loadSnPresets();
+            loadDbMap();
             loadChecklistCategories();
             renderChecklist();
             initSignaturePad();
             loadHistoryFromStorage();
             generateRefNo();
-            updateSnPresetDropdown("瑪麗醫院 (Queen Mary Hospital)");
+
+            // Populate initial Hospital dropdown
+            renderHospitalOptions();
 
             // Resize signature canvas on window resize
             window.addEventListener('resize', resizeCanvas);
@@ -548,39 +650,363 @@
             if(el) el.innerText = ref;
         }
 
-        function onHospitalChange(selectEl) {
-            toggleCustomHospital(selectEl);
-            const hospName = getHospitalValue();
-            updateSnPresetDropdown(hospName);
-        }
-
-        function updateSnPresetDropdown(hospitalName) {
-            const presetSelect = document.getElementById('preset-sn-select');
-            const stretcherInput = document.getElementById('stretcher-id');
-            const presets = hospitalSnPresets[hospitalName];
-
-            if (presets && presets.length > 0) {
-                presetSelect.innerHTML = `<option value="">-- 選取 ${hospitalName.split(' ')[0]} 預設床號 --</option>` +
-                    presets.map(sn => `<option value="${sn}">${sn}</option>`).join('');
-                presetSelect.classList.remove('hidden');
-                // Set initial default SN
-                stretcherInput.value = presets[0];
-            } else {
-                presetSelect.classList.add('hidden');
+        // Database Mapping Storage
+        function loadDbMap() {
+            try {
+                const saved = localStorage.getItem('stretcher_db_map');
+                if (saved) {
+                    dbMap = JSON.parse(saved);
+                } else {
+                    dbMap = JSON.parse(JSON.stringify(initialDataMap));
+                }
+            } catch(e) {
+                dbMap = JSON.parse(JSON.stringify(initialDataMap));
             }
         }
 
-        function showPresetSnList() {
-            const presetSelect = document.getElementById('preset-sn-select');
-            presetSelect.classList.toggle('hidden');
+        function saveDbMap() {
+            try {
+                localStorage.setItem('stretcher_db_map', JSON.stringify(dbMap));
+            } catch(e) {
+                console.warn("Failed to save db map");
+            }
         }
 
-        function applyPresetSn(val) {
+        // --- 1. Cascade Selection Logic (Hospital -> Vehicle -> Stretcher) ---
+
+        function renderHospitalOptions(selectedHosp) {
+            const hospSelect = document.getElementById('hospital-select');
+            const hospitals = Object.keys(dbMap);
+            
+            let html = hospitals.map(h => `<option value="${h}">${h}</option>`).join('');
+            html += `<option value="custom">+ 其他自訂醫院...</option>`;
+            hospSelect.innerHTML = html;
+
+            const targetHosp = selectedHosp && dbMap[selectedHosp] ? selectedHosp : hospitals[0];
+            hospSelect.value = targetHosp;
+            handleHospitalChange(targetHosp);
+        }
+
+        function handleHospitalChange(hospName) {
+            const customInput = document.getElementById('hospital-custom');
+            if (hospName === 'custom') {
+                customInput.classList.remove('hidden');
+                renderVehicleOptions("");
+                return;
+            } else {
+                customInput.classList.add('hidden');
+            }
+
+            renderVehicleOptions(hospName);
+        }
+
+        function renderVehicleOptions(hospName, selectedVehicle) {
+            const vehicleSelect = document.getElementById('vehicle-select');
+            
+            if (!hospName || !dbMap[hospName]) {
+                vehicleSelect.innerHTML = `<option value="">-- 無車牌資料 --</option>`;
+                renderStretcherOptions("", "");
+                return;
+            }
+
+            const vehicles = Object.keys(dbMap[hospName]);
+            if (vehicles.length === 0) {
+                vehicleSelect.innerHTML = `<option value="">-- 請先新增車牌 --</option>`;
+                renderStretcherOptions(hospName, "");
+                return;
+            }
+
+            vehicleSelect.innerHTML = vehicles.map(v => `<option value="${v}">${v}</option>`).join('');
+            const targetVehicle = selectedVehicle && dbMap[hospName][selectedVehicle] ? selectedVehicle : vehicles[0];
+            vehicleSelect.value = targetVehicle;
+
+            handleVehicleChange(targetVehicle);
+        }
+
+        function handleVehicleChange(vehiclePlate) {
+            const hospName = getHospitalValue();
+            renderStretcherOptions(hospName, vehiclePlate);
+        }
+
+        function renderStretcherOptions(hospName, vehiclePlate, selectedSN) {
+            const stretcherSelect = document.getElementById('preset-sn-select');
+            const stretcherInput = document.getElementById('stretcher-id');
+
+            if (!hospName || !vehiclePlate || !dbMap[hospName] || !dbMap[hospName][vehiclePlate]) {
+                stretcherSelect.innerHTML = `<option value="">-- 無預設擔架床 --</option>`;
+                stretcherInput.value = "";
+                return;
+            }
+
+            const snList = dbMap[hospName][vehiclePlate];
+            if (snList.length === 0) {
+                stretcherSelect.innerHTML = `<option value="">-- 該車牌無登記擔架床 --</option>`;
+                stretcherInput.value = "";
+                return;
+            }
+
+            stretcherSelect.innerHTML = snList.map(sn => `<option value="${sn}">${sn}</option>`).join('');
+            
+            const targetSN = selectedSN && snList.includes(selectedSN) ? selectedSN : snList[0];
+            stretcherSelect.value = targetSN;
+            stretcherInput.value = targetSN;
+        }
+
+        function handleStretcherSelectChange(val) {
             if (val) {
                 document.getElementById('stretcher-id').value = val;
-                showToast(`已載入預設床號: ${val}`);
             }
         }
+
+        // When user types or changes the SN manually in the text input
+        function handleStretcherInputChange(val) {
+            const cleanSn = val.trim().toUpperCase();
+            if (!cleanSn) return;
+            document.getElementById('stretcher-id').value = cleanSn;
+
+            // Check if this SN currently belongs to another vehicle/hospital
+            checkStretcherOwnershipAndPrompt(cleanSn);
+        }
+
+        // Search location of SN in existing dbMap
+        function findStretcherLocation(sn) {
+            for (let hosp in dbMap) {
+                for (let veh in dbMap[hosp]) {
+                    if (dbMap[hosp][veh].includes(sn)) {
+                        return { hospital: hosp, vehicle: veh };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Prompt alert modal if SN belongs to a different vehicle
+        function checkStretcherOwnershipAndPrompt(sn, callbackOnSuccess) {
+            const currentHosp = getHospitalValue();
+            const currentVeh = document.getElementById('vehicle-select').value;
+
+            const existingLoc = findStretcherLocation(sn);
+
+            if (existingLoc) {
+                if (existingLoc.hospital === currentHosp && existingLoc.vehicle === currentVeh) {
+                    // Already belongs to this vehicle -> no alert needed
+                    if (callbackOnSuccess) callbackOnSuccess();
+                    return;
+                }
+
+                // Belongs to ANOTHER vehicle/hospital -> Trigger Warning Modal!
+                pendingReassign = {
+                    sn: sn,
+                    oldHosp: existingLoc.hospital,
+                    oldVeh: existingLoc.vehicle,
+                    newHosp: currentHosp,
+                    newVeh: currentVeh,
+                    callback: callbackOnSuccess
+                };
+
+                document.getElementById('reassign-sn').innerText = sn;
+                document.getElementById('reassign-old-loc').innerText = `${existingLoc.vehicle} (${existingLoc.hospital.split(' ')[0]})`;
+                document.getElementById('reassign-new-loc').innerText = `${currentVeh} (${currentHosp.split(' ')[0]})`;
+
+                document.getElementById('reassign-modal').classList.remove('hidden');
+            } else {
+                // New SN -> Assign directly to current vehicle
+                if (!dbMap[currentHosp]) dbMap[currentHosp] = {};
+                if (!dbMap[currentHosp][currentVeh]) dbMap[currentHosp][currentVeh] = [];
+                dbMap[currentHosp][currentVeh].push(sn);
+                saveDbMap();
+                renderStretcherOptions(currentHosp, currentVeh, sn);
+                showToast(`已把新床號 ${sn} 綁定至 ${currentVeh}`);
+                if (callbackOnSuccess) callbackOnSuccess();
+            }
+        }
+
+        function confirmReassignment() {
+            if (!pendingReassign) return;
+
+            const { sn, oldHosp, oldVeh, newHosp, newVeh, callback } = pendingReassign;
+
+            // Remove SN from old vehicle
+            if (dbMap[oldHosp] && dbMap[oldHosp][oldVeh]) {
+                dbMap[oldHosp][oldVeh] = dbMap[oldHosp][oldVeh].filter(item => item !== sn);
+            }
+
+            // Add SN to new vehicle
+            if (!dbMap[newHosp]) dbMap[newHosp] = {};
+            if (!dbMap[newHosp][newVeh]) dbMap[newHosp][newVeh] = [];
+            if (!dbMap[newHosp][newVeh].includes(sn)) {
+                dbMap[newHosp][newVeh].push(sn);
+            }
+
+            saveDbMap();
+            document.getElementById('reassign-modal').classList.add('hidden');
+
+            renderStretcherOptions(newHosp, newVeh, sn);
+            showToast(`已成功將床號 ${sn} 調配至車牌 ${newVeh}！`);
+
+            if (callback) callback();
+            pendingReassign = null;
+        }
+
+        function cancelReassignment() {
+            document.getElementById('reassign-modal').classList.add('hidden');
+            // Revert SN field to current select option
+            const currentVeh = document.getElementById('vehicle-select').value;
+            const currentHosp = getHospitalValue();
+            renderStretcherOptions(currentHosp, currentVeh);
+            showToast("已取消擔架床調配", "error");
+            pendingReassign = null;
+        }
+
+        // Add New Vehicle Helper
+        function promptAddNewVehicle() {
+            const hosp = getHospitalValue();
+            if (!hosp) return;
+
+            const newVeh = prompt(`請輸入要在 [${hosp}] 新增的車牌號碼 (例: AM-9988):`);
+            if (newVeh && newVeh.trim()) {
+                const formatted = newVeh.trim().toUpperCase();
+                if (!dbMap[hosp]) dbMap[hosp] = {};
+                if (!dbMap[hosp][formatted]) {
+                    dbMap[hosp][formatted] = [];
+                    saveDbMap();
+                    renderVehicleOptions(hosp, formatted);
+                    showToast(`已新增車牌: ${formatted}`);
+                } else {
+                    showToast(`車牌 ${formatted} 已存在`, "error");
+                }
+            }
+        }
+
+        // Add New Stretcher Helper
+        function promptAddNewStretcher() {
+            const hosp = getHospitalValue();
+            const veh = document.getElementById('vehicle-select').value;
+
+            if (!hosp || !veh) {
+                showToast("請先選取醫院及車牌號碼", "error");
+                return;
+            }
+
+            const newSn = prompt(`請輸入要在車牌 [${veh}] 新增的擔架床編號 (例: 26NG0903162):`);
+            if (newSn && newSn.trim()) {
+                const formattedSn = newSn.trim().toUpperCase();
+                checkStretcherOwnershipAndPrompt(formattedSn);
+            }
+        }
+
+        function getHospitalValue() {
+            const selectEl = document.getElementById('hospital-select');
+            if(selectEl.value === 'custom') {
+                return document.getElementById('hospital-custom').value.trim();
+            }
+            return selectEl.value;
+        }
+
+        // --- 2. Label Photo OCR Recognition (Tesseract.js) ---
+
+        function processLabelOCR(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                runTesseractOCR(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function simulateDemoOCR() {
+            // Load sample OCR image simulation (using 26NG0903162 from the user requirement)
+            const demoSN = "26NG0903162";
+            const loadingModal = document.getElementById('ocr-loading-modal');
+            const statusText = document.getElementById('ocr-status-text');
+            const progressBar = document.getElementById('ocr-progress-bar');
+
+            loadingModal.classList.remove('hidden');
+            statusText.innerText = "正在模擬光學圖像辨識 (Demo)...";
+            progressBar.style.width = "40%";
+
+            setTimeout(() => {
+                progressBar.style.width = "100%";
+                setTimeout(() => {
+                    loadingModal.classList.add('hidden');
+                    applyRecognizedSN(demoSN);
+                }, 400);
+            }, 800);
+        }
+
+        function runTesseractOCR(imageDataUrl) {
+            const loadingModal = document.getElementById('ocr-loading-modal');
+            const statusText = document.getElementById('ocr-status-text');
+            const progressBar = document.getElementById('ocr-progress-bar');
+
+            loadingModal.classList.remove('hidden');
+            statusText.innerText = "載入 OCR 辨識引擎...";
+            progressBar.style.width = "20%";
+
+            Tesseract.recognize(
+                imageDataUrl,
+                'eng',
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const p = Math.round(m.progress * 100);
+                            statusText.innerText = `辨識分析中... ${p}%`;
+                            progressBar.style.width = `${p}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                loadingModal.classList.add('hidden');
+                
+                // Extract 10-11 character alphanumeric starting with '2' (e.g. 26NG0903162)
+                const regex = /\b2[0-9A-Z]{9,10}\b/gi;
+                const matches = text.match(regex);
+
+                if (matches && matches.length > 0) {
+                    const detectedSN = matches[0].toUpperCase();
+                    applyRecognizedSN(detectedSN);
+                } else {
+                    // Try looser regex with dashes or spaces like 26N-26NG0903162
+                    const fallbackRegex = /2[0-9A-Z\-]{9,12}/gi;
+                    const fbMatches = text.match(fallbackRegex);
+                    if (fbMatches && fbMatches.length > 0) {
+                        const cleanFb = fbMatches[0].replace(/[^0-9A-Z]/gi, '').toUpperCase();
+                        if (cleanFb.length >= 10 && cleanFb.startsWith('2')) {
+                            applyRecognizedSN(cleanFb);
+                            return;
+                        }
+                    }
+
+                    showToast("未能自動識別到 2 開頭的 10-11 位標籤編號，請手動選擇或輸入", "error");
+                }
+            }).catch(err => {
+                loadingModal.classList.add('hidden');
+                showToast("照片辨識過程發生錯誤，請重試", "error");
+            });
+        }
+
+        function applyRecognizedSN(detectedSN) {
+            showToast(`成功辨識標籤床號: ${detectedSN}`);
+
+            // Find if this SN exists in dbMap to auto-fill Hospital and Vehicle
+            const existingLoc = findStretcherLocation(detectedSN);
+
+            if (existingLoc) {
+                // Auto-fill Hospital and Vehicle
+                renderHospitalOptions(existingLoc.hospital);
+                renderVehicleOptions(existingLoc.hospital, existingLoc.vehicle);
+                renderStretcherOptions(existingLoc.hospital, existingLoc.vehicle, detectedSN);
+                showToast(`已自動連動 hospital: ${existingLoc.hospital.split(' ')[0]} ➔ 車牌: ${existingLoc.vehicle}`);
+            } else {
+                // If SN is new, keep current Hospital & Vehicle and prompt assignment
+                document.getElementById('stretcher-id').value = detectedSN;
+                checkStretcherOwnershipAndPrompt(detectedSN);
+            }
+        }
+
+        // --- 3. Custom Checklist Management Logic ---
 
         function loadChecklistCategories() {
             try {
@@ -789,6 +1215,8 @@
             showToast("已將所有檢查項目預設為「正常」");
         }
 
+        // --- 4. Navigation & Step Form Logic ---
+
         function goToStep(step) {
             if(step > currentStep && !validateStep(currentStep)) return;
 
@@ -796,7 +1224,6 @@
             const target = document.getElementById(`step-${step}`);
             if (target) target.classList.remove('hidden');
 
-            // Update stepper indicator state
             for(let i = 1; i <= 4; i++) {
                 const ind = document.getElementById(`step-ind-${i}`);
                 if (!ind) continue;
@@ -824,41 +1251,19 @@
         function validateStep(step) {
             if(step === 1) {
                 const hosp = getHospitalValue();
+                const veh = document.getElementById('vehicle-select').value;
                 const id = document.getElementById('stretcher-id').value.trim();
                 const inspector = document.getElementById('inspector-name').value.trim();
 
-                if(!hosp || !id || !inspector) {
-                    showToast("請填寫所有必填欄位 (醫院、擔架床編號、巡查人員)", "error");
+                if(!hosp || !veh || !id || !inspector) {
+                    showToast("請填寫所有必填欄位 (醫院、車牌號碼、擔架床編號、巡查人員)", "error");
                     return false;
                 }
             }
             return true;
         }
 
-        function toggleCustomHospital(selectEl) {
-            const customInput = document.getElementById('hospital-custom');
-            if(selectEl.value === 'custom') {
-                customInput.classList.remove('hidden');
-            } else {
-                customInput.classList.add('hidden');
-            }
-        }
-
-        function getHospitalValue() {
-            const selectEl = document.getElementById('hospital-select');
-            if(selectEl.value === 'custom') {
-                return document.getElementById('hospital-custom').value.trim();
-            }
-            return selectEl.value;
-        }
-
-        function simulateQRScan() {
-            const sampleCodes = ['ST-QM-082', 'ST-PWH-104', 'ST-QEH-019', 'ST-HKSH-005'];
-            const randomCode = sampleCodes[Math.floor(Math.random() * sampleCodes.length)];
-            document.getElementById('stretcher-id').value = randomCode;
-            showToast(`已成功掃描 QR Code: ${randomCode}`);
-        }
-
+        // Photo Upload Handlers
         function handlePhotoUpload(event) {
             const files = event.target.files;
             if(!files || files.length === 0) return;
@@ -884,11 +1289,9 @@
             canvas.height = 300;
             const ctx = canvas.getContext('2d');
             
-            // Draw background
             ctx.fillStyle = '#f1f5f9';
             ctx.fillRect(0, 0, 400, 300);
             
-            // Draw simulated wheel defect sketch
             ctx.fillStyle = '#64748b';
             ctx.beginPath();
             ctx.arc(200, 150, 70, 0, Math.PI * 2);
@@ -899,7 +1302,6 @@
             ctx.arc(200, 150, 30, 0, Math.PI * 2);
             ctx.fill();
 
-            // Highlight damage circle
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 6;
             ctx.beginPath();
@@ -961,18 +1363,17 @@
             showToast("已刪除相片");
         }
 
+        // Canvas Signature Pad Logic
         function initSignaturePad() {
             signatureCanvas = document.getElementById('signature-pad');
             if(!signatureCanvas) return;
             signatureCtx = signatureCanvas.getContext('2d');
 
-            // Mouse Events
             signatureCanvas.addEventListener('mousedown', startSigning);
             signatureCanvas.addEventListener('mousemove', drawSigning);
             signatureCanvas.addEventListener('mouseup', stopSigning);
             signatureCanvas.addEventListener('mouseleave', stopSigning);
 
-            // Touch Events for Mobile
             signatureCanvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -1034,6 +1435,7 @@
             return !pixelBuffer.some(color => color !== 0);
         }
 
+        // Form Submission
         function submitInspectionForm() {
             if(isCanvasBlank(signatureCanvas)) {
                 showToast("請先完成客戶電子簽署！", "error");
@@ -1046,9 +1448,9 @@
                 return;
             }
 
-            // Gather Data
             const refNo = document.getElementById('form-ref-no').innerText;
             const hospital = getHospitalValue();
+            const vehiclePlate = document.getElementById('vehicle-select').value;
             const stretcherId = document.getElementById('stretcher-id').value.trim();
             const inspector = document.getElementById('inspector-name').value.trim();
             const dateStr = document.getElementById('inspection-date').value;
@@ -1056,7 +1458,6 @@
             const notes = document.getElementById('inspection-notes').value.trim();
             const signatureData = signatureCanvas.toDataURL('image/png');
 
-            // Collect Checklist Statuses
             const checklistResults = [];
             let hasIssue = false;
 
@@ -1084,6 +1485,7 @@
                 id: Date.now().toString(),
                 refNo: refNo,
                 hospital: hospital,
+                vehiclePlate: vehiclePlate,
                 stretcherId: stretcherId,
                 inspector: inspector,
                 date: dateStr,
@@ -1094,10 +1496,9 @@
                 checklist: checklistResults,
                 photos: [...uploadedPhotos],
                 signature: signatureData,
-                driveFolderPath: `Google Drive / 擔架床檢查系統歸檔 / 2026年 / ${hospital} / ${dateStr.slice(0,10).replace(/-/g,'')}_床號${stretcherId}/`
+                driveFolderPath: `Google Drive / 擔架床檢查系統歸檔 / 2026年 / ${hospital} / ${dateStr.slice(0,10).replace(/-/g,'')}_車牌${vehiclePlate}_床號${stretcherId}/`
             };
 
-            // Start Animated Loading Screen
             const overlay = document.getElementById('sync-overlay');
             const statusText = document.getElementById('sync-status-text');
             const progressBar = document.getElementById('sync-progress-bar');
@@ -1131,7 +1532,7 @@
                 }
             }, 500);
 
-            // Optional: Connect to your live Google Apps Script endpoint if configured
+            // Optional: GAS fetch integration
             const GAS_URL = "https://script.google.com/macros/s/AKfycbxWr97mIFqlBIcngjQLu8prxOIUAc0AWD409wQKBkfqP08s7Ji8Izn_AI_zG1tcaWn92Q/exec";
             if (GAS_URL && !GAS_URL.includes("YOUR_SCRIPT_ID")) {
                 try {
@@ -1145,6 +1546,7 @@
             }
         }
 
+        // PDF Report Modal Rendering
         function openPdfModal(record) {
             const body = document.getElementById('pdf-document-body');
             
@@ -1196,8 +1598,9 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                         <div><span class="text-slate-500">醫院/機構:</span> <strong class="text-slate-900">${record.hospital}</strong></div>
+                        <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono">${record.vehiclePlate || 'N/A'}</strong></div>
                         <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono">${record.stretcherId}</strong></div>
                         <div><span class="text-slate-500">巡查工程師:</span> <strong class="text-slate-900">${record.inspector}</strong></div>
                         <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900">${record.date.replace('T', ' ')}</strong></div>
@@ -1246,6 +1649,7 @@
             document.getElementById('pdf-modal').classList.add('hidden');
         }
 
+        // Tab Switching & History View
         function switchTab(tab) {
             document.getElementById('tab-new-form').classList.add('hidden');
             document.getElementById('tab-history').classList.add('hidden');
@@ -1271,7 +1675,7 @@
             driveTree.innerHTML = '';
 
             if(inspectionHistory.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">暫無歷史檢查紀錄。請先新增檢查並提交。</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">暫無歷史檢查紀錄。請先新增檢查並提交。</td></tr>`;
                 driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
                 return;
             }
@@ -1285,6 +1689,7 @@
                         <div class="text-xs text-slate-400">${rec.date.replace('T', ' ')}</div>
                     </td>
                     <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
+                    <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
                     <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
                     <td class="p-3">
                         <span class="px-2 py-1 rounded-full text-xs font-bold ${rec.overallStatus === '檢查合格' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
@@ -1303,7 +1708,7 @@
                 const treeItem = document.createElement('div');
                 treeItem.innerHTML = `
                     <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
-                    <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_床號${rec.stretcherId}</div>
+                    <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
                     <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf</div>
                     <div class="pl-12 text-slate-400">├── 🖼️ 電子簽名.png</div>
                     ${rec.photos.map(p => `<div class="pl-12 text-slate-400">├── 🖼️ 相片_${p.title}.jpg</div>`).join('')}
