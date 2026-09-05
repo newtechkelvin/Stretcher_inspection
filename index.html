@@ -100,7 +100,7 @@
                             <h2 class="text-lg font-bold text-slate-900">Step 1: 醫院、車牌與設備資料</h2>
                             <p class="text-xs text-slate-500">選取醫院 ➔ 車牌號碼 ➔ 擔架床編號，或拍照自動辨識標籤</p>
                         </div>
-                        <span class="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-medium">表單編號 #<span id="form-ref-no">INS-2026-001</span></span>
+                        <span class="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-medium">表單編號 #<span id="form-ref-no">NT-INS-26-00001</span></span>
                     </div>
 
                     <!-- OCR Label Scanner Banner -->
@@ -643,9 +643,10 @@
         }
 
         function generateRefNo() {
-            const randomNum = Math.floor(100 + Math.random() * 900);
-            const year = new Date().getFullYear();
-            const ref = `INS-${year}-${randomNum}`;
+            let seq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
+            const year2 = new Date().getFullYear().toString().slice(-2);
+            const paddedSeq = String(seq).padStart(5, '0');
+            const ref = `NT-INS-${year2}-${paddedSeq}`;
             const el = document.getElementById('form-ref-no');
             if(el) el.innerText = ref;
         }
@@ -1525,6 +1526,10 @@
                     
                     inspectionHistory.unshift(record);
                     saveHistoryToStorage();
+
+                    // 自動遞增下一次表單編號的流水號
+                    let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
+                    localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
 
                     openPdfModal(record);
                     showToast("成功提交並完成 Google Drive 歸檔！");
