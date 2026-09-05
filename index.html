@@ -60,6 +60,7 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 no-print">
 
+        <!-- TAB 1: New Inspection Form -->
         <div id="tab-new-form" class="space-y-6">
             
             <!-- Progress Stepper -->
@@ -117,7 +118,11 @@
                         <div>
                             <div class="flex justify-between items-center mb-1">
                                 <label class="block text-sm font-medium text-slate-700">擔架床編號 (SN#) <span class="text-red-500">*</span></label>
-                                <span class="text-xs text-teal-600 cursor-pointer hover:underline" onclick="showPresetSnList()">選擇預設床號</span>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs text-teal-600 cursor-pointer hover:underline font-semibold" onclick="showPresetSnList()">選擇預設床號</span>
+                                    <span class="text-xs text-slate-400">|</span>
+                                    <span class="text-xs text-teal-600 cursor-pointer hover:underline font-semibold" onclick="promptAddNewSn()"><i class="fa-solid fa-plus text-[10px]"></i> 新增床號</span>
+                                </div>
                             </div>
                             <div class="relative">
                                 <input type="text" id="stretcher-id" value="ST-QM-082" placeholder="例: ST-001" class="w-full rounded-xl border border-slate-300 pl-4 pr-24 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none uppercase font-mono font-bold">
@@ -160,8 +165,9 @@
                             <p class="text-xs text-slate-500">請逐項點檢部件狀態，如有異常請標記</p>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button type="button" onclick="openChecklistManagerModal()" class="text-xs bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold px-3 py-1.5 rounded-lg transition border border-teal-200">
-                                <i class="fa-solid fa-gear mr-1"></i>自訂項目
+                            <button type="button" onclick="openChecklistManagerModal()" class="text-xs bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold px-3 py-1.5 rounded-lg transition border border-teal-200 flex items-center space-x-1">
+                                <i class="fa-solid fa-gear"></i>
+                                <span>自訂項目</span>
                             </button>
                             <button type="button" onclick="setAllChecklistPass()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition">
                                 <i class="fa-solid fa-check-double mr-1"></i>全選「正常」
@@ -237,8 +243,102 @@
                         <p class="text-xs text-slate-500">請客戶於下方螢幕簽名框內進行電子簽名確認</p>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Checklist Manager Modal -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名 <span class="text-red-500">*</span></label>
+                                <input type="text" id="signer-name" placeholder="例: 王護士長 / 設備科李主任" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
+                                <input type="text" id="signer-dept" placeholder="例: 急症室 (A&E) / 生物醫學工程部" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
+                                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <label class="block text-sm font-medium text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
+                                <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
+                                </button>
+                            </div>
+                            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
+                                <canvas id="signature-pad" class="w-full h-full block"></canvas>
+                                <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
+                                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-400">完成簽名後點擊下方提交，系統將自動生成報告並上傳至 Google Drive。</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+                            <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
+                        </button>
+                        <button type="button" onclick="submitInspectionForm()" class="px-7 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>確認簽收並同步 Drive</span>
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- TAB 2: History & Google Drive Archive -->
+        <div id="tab-history" class="space-y-6 hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">巡查歷史紀錄與 Google Drive 歸檔庫</h2>
+                        <p class="text-xs text-slate-500">檢視所有已提交的擔架床巡查紀錄、雲端目錄及 PDF 報告</p>
+                    </div>
+                    <button onclick="switchTab('new-form')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>新增巡查</span>
+                    </button>
+                </div>
+
+                <!-- Records Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                <th class="p-3">報告編號 / 日期</th>
+                                <th class="p-3">目標醫院</th>
+                                <th class="p-3">床號 (SN#)</th>
+                                <th class="p-3">狀態</th>
+                                <th class="p-3">現場相片</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Drive Hierarchy Simulation -->
+                <div class="mt-8 bg-slate-900 text-slate-200 p-5 rounded-xl font-mono text-xs space-y-2">
+                    <div class="flex items-center space-x-2 text-teal-400 font-bold mb-2">
+                        <i class="fa-brands fa-google-drive"></i>
+                        <span>Google Drive 雲端資料夾樹狀目錄模擬：</span>
+                    </div>
+                    <div id="drive-folder-tree" class="space-y-1 overflow-x-auto max-h-60">
+                        <!-- Dynamic folder tree -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Checklist Manager Modal (Top level for clean z-index) -->
     <div id="checklist-manager-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -282,9 +382,80 @@
         </div>
     </div>
 
+    <!-- Sync Loading Overlay -->
+    <div id="sync-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl border border-slate-200">
+            <div class="w-16 h-16 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-2xl animate-pulse">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg text-slate-900">正在同步至 Google Drive</h3>
+                <p id="sync-status-text" class="text-xs text-slate-500 mt-1">正在連接 Google Drive API...</p>
+            </div>
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div id="sync-progress-bar" class="bg-teal-600 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+            </div>
+            <p class="text-[11px] text-slate-400">正在上傳高清現場照片、電子簽名檔及更新試算表...</p>
+        </div>
+    </div>
+
+    <!-- PDF Report Preview Modal -->
+    <div id="pdf-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center no-print">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-file-pdf text-teal-400"></i>
+                    <h3 class="font-bold text-sm">巡查簽收報告預覽</h3>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="window.print()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1">
+                        <i class="fa-solid fa-print"></i>
+                        <span>列印 / 另存 PDF</span>
+                    </button>
+                    <button onclick="closePdfModal()" class="text-slate-400 hover:text-white p-1 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="pdf-document-body" class="p-6 md:p-10 overflow-y-auto flex-1 bg-white">
+                <!-- PDF body rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Drive Config & Setup Guide Modal -->
+    <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-gear text-teal-400"></i>
+                    <h3 class="font-bold text-base">Google Apps Script (GAS) 部署指引</h3>
+                </div>
+                <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs text-slate-600 leading-relaxed">
+                <p class="font-semibold text-slate-800 text-sm">如何連接真實 Google Drive？</p>
+                <ol class="list-decimal list-inside space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <li>在 Google Drive 建立一個放照片與試算表的主資料夾。</li>
+                    <li>新增 Google Sheets，點擊「擴充功能」➔「Apps Script」。</li>
+                    <li>貼上後端指令碼並部署為「網頁應用程式 (Web App)」，存取權限設為「所有人 (Anyone)」。</li>
+                    <li>取得 Web App URL 後，在程式碼內的 <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-teal-700">GAS_URL</code> 替換為你的實際網址即可！</li>
+                </ol>
+            </div>
+            <div class="bg-slate-50 border-t border-slate-200 px-6 py-3 flex justify-end">
+                <button onclick="toggleConfigModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition">
+                    知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Preset Stretcher Serial Numbers mapped to Hospitals
-        const hospitalSnPresets = {
+        // 💡 可以在此處新增貴公司的預設醫院與床號對應表：
+        const defaultHospitalSnPresets = {
             "瑪麗醫院 (Queen Mary Hospital)": ["ST-QM-082", "ST-QM-083", "ST-QM-105", "ST-QM-210"],
             "威爾斯親王醫院 (Prince of Wales Hospital)": ["ST-PWH-104", "ST-PWH-105", "ST-PWH-201"],
             "伊利沙伯醫院 (Queen Elizabeth Hospital)": ["ST-QEH-019", "ST-QEH-022", "ST-QEH-088"],
@@ -292,40 +463,48 @@
             "廣華醫院 (Kwong Wah Hospital)": ["ST-KWH-031", "ST-KWH-045"]
         };
 
-        // Default Checklist Definition Data
-        const defaultChecklistCategories = [
-            {
-                category: "1. 輪軸及煞車系統 (Wheel & Brake System)",
-                items: [
-                    { id: "item_wheel_roll", name: "腳輪順暢度 (無異響 / 無磨損卡死)" },
-                    { id: "item_brake_lock", name: "中央煞車鎖定功能 (煞車固實不滑移)" },
-                    { id: "item_steer_lock", name: "方向鎖定功能 (Steering Lock)" }
-                ]
-            },
-            {
-                category: "2. 床體升降與結構 (Hydraulic & Frame)",
-                items: [
-                    { id: "item_height_adj", name: "液壓升降機制 (High-Low Hydraulics)" },
-                    { id: "item_trend_tilt", name: "頭高腳低/腳高頭低傾斜 (Trendelenburg)" },
-                    { id: "item_backrest", name: "背板升降氣壓棒 (Backrest Pneumatic Springs)" }
-                ]
-            },
-            {
-                category: "3. 安全護欄與床墊 (Rails & Mattress)",
-                items: [
-                    { id: "item_side_rails", name: "兩側折疊護欄 (Side Rails Lock)" },
-                    { id: "item_mattress_cond", name: "防液體床墊皮套 (無破損/消毒良好)" },
-                    { id: "item_belts", name: "病患固定安全帶 (Patient Restraint Belts)" }
-                ]
-            },
-            {
-                category: "4. 附屬配件 (Accessories)",
-                items: [
-                    { id: "item_iv_pole", name: "點滴架 / IV Pole 伸縮正常" },
-                    { id: "item_oxygen_holder", name: "氧氣筒固定架 (Oxygen Tank Holder)" }
-                ]
+        let hospitalSnPresets = {};
+
+        function loadSnPresets() {
+            try {
+                const saved = localStorage.getItem('stretcher_sn_presets');
+                if (saved) {
+                    hospitalSnPresets = JSON.parse(saved);
+                } else {
+                    hospitalSnPresets = JSON.parse(JSON.stringify(defaultHospitalSnPresets));
+                }
+            } catch (e) {
+                hospitalSnPresets = JSON.parse(JSON.stringify(defaultHospitalSnPresets));
             }
-        ];
+        }
+
+        function saveSnPresets() {
+            try {
+                localStorage.setItem('stretcher_sn_presets', JSON.stringify(hospitalSnPresets));
+            } catch (e) {
+                console.warn("Unable to save SN presets");
+            }
+        }
+
+        function promptAddNewSn() {
+            const hosp = getHospitalValue();
+            const newSn = prompt(`請輸入要在 [${hosp}] 新增的擔架床編號 (SN#):`);
+            if (newSn && newSn.trim()) {
+                const formattedSn = newSn.trim().toUpperCase();
+                if (!hospitalSnPresets[hosp]) {
+                    hospitalSnPresets[hosp] = [];
+                }
+                if (!hospitalSnPresets[hosp].includes(formattedSn)) {
+                    hospitalSnPresets[hosp].push(formattedSn);
+                    saveSnPresets();
+                    updateSnPresetDropdown(hosp);
+                    document.getElementById('stretcher-id').value = formattedSn;
+                    showToast(`已新增並選取床號: ${formattedSn}`);
+                } else {
+                    showToast(`床號 ${formattedSn} 已存在於列表中`, "error");
+                }
+            }
+        }
 
         // Active Checklist Categories (Loaded from LocalStorage or default)
         let activeChecklistCategories = [];
@@ -340,6 +519,7 @@
         // App Initialization
         window.onload = function() {
             initDate();
+            loadSnPresets();
             loadChecklistCategories();
             renderChecklist();
             initSignaturePad();
@@ -350,6 +530,23 @@
             // Resize signature canvas on window resize
             window.addEventListener('resize', resizeCanvas);
         };
+
+        function initDate() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            const dateInput = document.getElementById('inspection-date');
+            if (dateInput) {
+                dateInput.value = now.toISOString().slice(0, 16);
+            }
+        }
+
+        function generateRefNo() {
+            const randomNum = Math.floor(100 + Math.random() * 900);
+            const year = new Date().getFullYear();
+            const ref = `INS-${year}-${randomNum}`;
+            const el = document.getElementById('form-ref-no');
+            if(el) el.innerText = ref;
+        }
 
         function onHospitalChange(selectEl) {
             toggleCustomHospital(selectEl);
@@ -416,16 +613,19 @@
 
         function openChecklistManagerModal() {
             renderChecklistEditorTree();
-            document.getElementById('checklist-manager-modal').classList.remove('hidden');
+            const modal = document.getElementById('checklist-manager-modal');
+            if (modal) modal.classList.remove('hidden');
         }
 
         function closeChecklistManagerModal() {
-            document.getElementById('checklist-manager-modal').classList.add('hidden');
+            const modal = document.getElementById('checklist-manager-modal');
+            if (modal) modal.classList.add('hidden');
             renderChecklist();
         }
 
         function renderChecklistEditorTree() {
             const tree = document.getElementById('checklist-editor-tree');
+            if (!tree) return;
             tree.innerHTML = '';
 
             activeChecklistCategories.forEach((cat, catIdx) => {
@@ -473,7 +673,7 @@
             activeChecklistCategories.push({
                 category: name,
                 items: [
-                    { id: `custom_${Date.now()}_1`, name: "範例檢驗項目 A" }
+                    { id: `custom_${Date.now()}_1`, name: "新檢驗項目 (點擊修改)" }
                 ]
             });
             input.value = '';
@@ -521,9 +721,10 @@
 
         function renderChecklist() {
             const container = document.getElementById('checklist-container');
+            if (!container) return;
             container.innerHTML = '';
 
-            activeChecklistCategories.forEach((cat, catIdx) => {
+            activeChecklistCategories.forEach((cat) => {
                 const catEl = document.createElement('div');
                 catEl.className = 'bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3';
                 
@@ -536,13 +737,13 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-slate-200 gap-2">
                         <span class="text-sm font-medium text-slate-800">${item.name}</span>
                         <div class="flex items-center space-x-1 sm:space-x-2" id="group-${item.id}">
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 transition flex items-center space-x-1">
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1" data-selected="true">
                                 <i class="fa-solid fa-circle-check"></i><span>正常 Pass</span>
                             </button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 transition flex items-center space-x-1">
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 transition flex items-center space-x-1" data-selected="false">
                                 <i class="fa-solid fa-circle-xmark"></i><span>需維修 Issue</span>
                             </button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1">
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1" data-selected="false">
                                 <span>N/A</span>
                             </button>
                         </div>
@@ -553,9 +754,30 @@
                 catEl.innerHTML = html;
                 container.appendChild(catEl);
             });
+        }
 
-            // Set defaults to 'pass'
-            setAllChecklistPass();
+        function setChecklistItemStatus(id, status) {
+            const passBtn = document.getElementById(`btn-${id}-pass`);
+            const failBtn = document.getElementById(`btn-${id}-fail`);
+            const naBtn = document.getElementById(`btn-${id}-na`);
+            if(!passBtn || !failBtn || !naBtn) return;
+
+            // Reset buttons
+            [passBtn, failBtn, naBtn].forEach(b => {
+                b.dataset.selected = "false";
+                b.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1";
+            });
+
+            if(status === 'pass') {
+                passBtn.dataset.selected = "true";
+                passBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1";
+            } else if(status === 'fail') {
+                failBtn.dataset.selected = "true";
+                failBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-rose-500 text-white shadow-sm transition flex items-center space-x-1";
+            } else {
+                naBtn.dataset.selected = "true";
+                naBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-700 text-white shadow-sm transition flex items-center space-x-1";
+            }
         }
 
         function setAllChecklistPass() {
@@ -571,11 +793,13 @@
             if(step > currentStep && !validateStep(currentStep)) return;
 
             document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`step-${step}`).classList.remove('hidden');
+            const target = document.getElementById(`step-${step}`);
+            if (target) target.classList.remove('hidden');
 
             // Update stepper indicator state
             for(let i = 1; i <= 4; i++) {
                 const ind = document.getElementById(`step-ind-${i}`);
+                if (!ind) continue;
                 const badge = ind.querySelector('span:first-child');
                 const text = ind.querySelector('span:last-child');
 
@@ -592,7 +816,9 @@
             }
 
             currentStep = step;
-            if(step === 4) resizeCanvas();
+            if(step === 4) {
+                setTimeout(resizeCanvas, 50);
+            }
         }
 
         function validateStep(step) {
@@ -653,7 +879,6 @@
         }
 
         function addSamplePhoto() {
-            // Generate canvas demo image with label
             const canvas = document.createElement('canvas');
             canvas.width = 400;
             canvas.height = 300;
@@ -708,7 +933,7 @@
             }
 
             grid.innerHTML = '';
-            uploadedPhotos.forEach((photo, index) => {
+            uploadedPhotos.forEach((photo) => {
                 const card = document.createElement('div');
                 card.className = "bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center space-x-3";
                 card.innerHTML = `
@@ -738,6 +963,7 @@
 
         function initSignaturePad() {
             signatureCanvas = document.getElementById('signature-pad');
+            if(!signatureCanvas) return;
             signatureCtx = signatureCanvas.getContext('2d');
 
             // Mouse Events
@@ -750,7 +976,6 @@
             signatureCanvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
-                const rect = signatureCanvas.getBoundingClientRect();
                 startSigning({ clientX: touch.clientX, clientY: touch.clientY });
             });
 
@@ -766,8 +991,9 @@
         function resizeCanvas() {
             if(!signatureCanvas) return;
             const container = signatureCanvas.parentElement;
+            if(!container) return;
             signatureCanvas.width = container.clientWidth;
-            signatureCanvas.height = 192; // 48 * 4
+            signatureCanvas.height = 192;
             signatureCtx.lineWidth = 2.5;
             signatureCtx.lineCap = 'round';
             signatureCtx.strokeStyle = '#0f172a';
@@ -793,13 +1019,14 @@
         }
 
         function clearSignature() {
-            if(!signatureCtx) return;
+            if(!signatureCtx || !signatureCanvas) return;
             signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
             document.getElementById('sig-placeholder').classList.remove('hidden');
             showToast("已清空簽名");
         }
 
         function isCanvasBlank(canvas) {
+            if(!canvas) return true;
             const context = canvas.getContext('2d');
             const pixelBuffer = new Uint32Array(
                 context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
@@ -808,7 +1035,6 @@
         }
 
         function submitInspectionForm() {
-            // Check Signature
             if(isCanvasBlank(signatureCanvas)) {
                 showToast("請先完成客戶電子簽署！", "error");
                 return;
@@ -878,7 +1104,6 @@
             
             overlay.classList.remove('hidden');
             
-            // Simulation steps
             const steps = [
                 { p: 25, msg: `正在連接 Google Drive API...` },
                 { p: 50, msg: `建立目錄: ${record.driveFolderPath}` },
@@ -897,31 +1122,27 @@
                     clearInterval(interval);
                     overlay.classList.add('hidden');
                     
-                    // Save to local storage history
                     inspectionHistory.unshift(record);
                     saveHistoryToStorage();
 
-                    // Open PDF Preview Modal
                     openPdfModal(record);
-                    
                     showToast("成功提交並完成 Google Drive 歸檔！");
-                    generateRefNo(); // reset ref no for next
+                    generateRefNo();
                 }
-            }, 600);
+            }, 500);
 
-            // 將以下代碼加到 submitInspectionForm 函式中：
+            // Optional: Connect to your live Google Apps Script endpoint if configured
             const GAS_URL = "https://script.google.com/macros/s/AKfycbxWr97mIFqlBIcngjQLu8prxOIUAc0AWD409wQKBkfqP08s7Ji8Izn_AI_zG1tcaWn92Q/exec";
-
-            fetch(GAS_URL, {
-                method: "POST",
-                mode: "no-cors", // 或使用標準 POST
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(record)
-            }).then(() => {
-                // 同步完成後的提示與打開 PDF
-                openPdfModal(record);
-                showToast("成功上傳相片與資料至 Google Drive！");
-            });
+            if (GAS_URL && !GAS_URL.includes("YOUR_SCRIPT_ID")) {
+                try {
+                    fetch(GAS_URL, {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(record)
+                    }).catch(e => console.log("GAS Sync Notice:", e));
+                } catch(e) {}
+            }
         }
 
         function openPdfModal(record) {
@@ -962,7 +1183,6 @@
 
             body.innerHTML = `
                 <div class="max-w-3xl mx-auto space-y-6 font-sans text-slate-800">
-                    <!-- Report Header -->
                     <div class="flex justify-between items-start border-b-2 border-slate-900 pb-4">
                         <div>
                             <h1 class="text-2xl font-black text-slate-900 tracking-tight">醫療擔架床定期檢查與交付報告</h1>
@@ -976,7 +1196,6 @@
                         </div>
                     </div>
 
-                    <!-- Details Grid -->
                     <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                         <div><span class="text-slate-500">醫院/機構:</span> <strong class="text-slate-900">${record.hospital}</strong></div>
                         <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono">${record.stretcherId}</strong></div>
@@ -984,7 +1203,6 @@
                         <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900">${record.date.replace('T', ' ')}</strong></div>
                     </div>
 
-                    <!-- Checklist Table -->
                     <div>
                         <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">檢查項目測試結果 SUMMARY</h3>
                         <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
@@ -1002,7 +1220,6 @@
 
                     ${photosHtml}
 
-                    <!-- Signature Block -->
                     <div class="border-t border-slate-200 pt-4 grid grid-cols-2 gap-6">
                         <div class="space-y-1 text-xs">
                             <p class="text-slate-500">特別說明 / 備註:</p>
@@ -1059,8 +1276,7 @@
                 return;
             }
 
-            inspectionHistory.forEach((rec, idx) => {
-                // Render Table Row
+            inspectionHistory.forEach((rec) => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition";
                 tr.innerHTML = `
@@ -1084,7 +1300,6 @@
                 `;
                 tableBody.appendChild(tr);
 
-                // Render Drive Folder Tree simulation
                 const treeItem = document.createElement('div');
                 treeItem.innerHTML = `
                     <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
