@@ -1771,55 +1771,91 @@ function closePdfModal() {
             }
         }
 
-        function renderHistoryRecords() {
-            const tableBody = document.getElementById('history-table-body');
-            const driveTree = document.getElementById('drive-folder-tree');
-            
-            tableBody.innerHTML = '';
-            driveTree.innerHTML = '';
+       // 1. 更新渲染歷史紀錄表格：在「操作」欄加多一個刪除按鈕
+function renderHistoryRecords() {
+    const tableBody = document.getElementById('history-table-body');
+    const driveTree = document.getElementById('drive-folder-tree');
+    
+    tableBody.innerHTML = '';
+    driveTree.innerHTML = '';
 
-            if(inspectionHistory.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">暫無歷史檢查紀錄。請先新增檢查並提交。</td></tr>`;
-                driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
-                return;
-            }
+    if(inspectionHistory.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">暫無歷史檢查紀錄。請先新增檢查並提交。</td></tr>`;
+        driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
+        return;
+    }
 
-            inspectionHistory.forEach((rec) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
-                tr.innerHTML = `
-                    <td class="p-3">
-                        <span class="font-bold font-mono text-slate-800">${rec.refNo}</span>
-                        <div class="text-xs text-slate-400">${rec.date.replace('T', ' ')}</div>
-                    </td>
-                    <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
-                    <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
-                    <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
-                    <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-xs font-bold ${rec.overallStatus === '檢查合格' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                            ${rec.overallStatus}
-                        </span>
-                    </td>
-                    <td class="p-3 text-slate-600"><i class="fa-solid fa-image text-slate-400 mr-1"></i>${rec.photos.length} 張</td>
-                    <td class="p-3 text-right">
-                        <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded-lg transition">
-                            <i class="fa-solid fa-file-pdf mr-1"></i>查看 PDF 報告
-                        </button>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
+    inspectionHistory.forEach((rec, index) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition";
+        tr.innerHTML = `
+            <td class="p-3">
+                <span class="font-bold font-mono text-slate-800">${rec.refNo}</span>
+                <div class="text-xs text-slate-400">${rec.date.replace('T', ' ')}</div>
+            </td>
+            <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
+            <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
+            <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
+            <td class="p-3">
+                <span class="px-2 py-1 rounded-full text-xs font-bold ${rec.overallStatus === '檢查合格' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                    ${rec.overallStatus}
+                </span>
+            </td>
+            <td class="p-3 text-slate-600"><i class="fa-solid fa-image text-slate-400 mr-1"></i>${rec.photos ? rec.photos.length : 0} 張</td>
+            <td class="p-3 text-right">
+                <div class="flex items-center justify-end space-x-2">
+                    <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded-lg transition flex items-center">
+                        <i class="fa-solid fa-file-pdf mr-1"></i>查看 PDF 報告
+                    </button>
+                    <button onclick="deleteInspectionRecord('${rec.id}', '${rec.refNo}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-lg transition border border-rose-200 flex items-center" title="刪除此紀錄">
+                        <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                    </button>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(tr);
 
-                const treeItem = document.createElement('div');
-                treeItem.innerHTML = `
-                    <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
-                    <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
-                    <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf</div>
-                    <div class="pl-12 text-slate-400">├── 🖼️ 電子簽名.png</div>
-                    ${rec.photos.map(p => `<div class="pl-12 text-slate-400">├── 🖼️ 相片_${p.title}.jpg</div>`).join('')}
-                `;
-                driveTree.appendChild(treeItem);
-            });
-        }
+        const treeItem = document.createElement('div');
+        treeItem.innerHTML = `
+            <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
+            <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
+            <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf</div>
+            <div class="pl-12 text-slate-400">├── 🖼️ 電子簽名.png</div>
+            ${rec.photos ? rec.photos.map(p => `<div class="pl-12 text-slate-400">├── 🖼️ 相片_${p.title}.jpg</div>`).join('') : ''}
+        `;
+        driveTree.appendChild(treeItem);
+    });
+}
+
+// 2. 新增刪除歷史紀錄函式
+function deleteInspectionRecord(recordId, refNo) {
+    if (!confirm(`確定要刪除巡查報告 [${refNo}] 嗎？此動作無法復原。`)) {
+        return;
+    }
+
+    // 1. 從本地陣列過濾刪除
+    inspectionHistory = inspectionHistory.filter(rec => rec.id !== recordId);
+    
+    // 2. 更新 LocalStorage
+    saveHistoryToStorage();
+    
+    // 3. 重新渲染畫面
+    renderHistoryRecords();
+    
+    showToast(`已成功刪除報告 [${refNo}]`);
+
+    // 4. (可選) 傳送刪除請求至 GAS 進行後端註記
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
+    if (GAS_URL) {
+        try {
+            fetch(GAS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "delete", id: recordId, refNo: refNo })
+            }).catch(e => console.log("GAS Delete Sync Notice:", e));
+        } catch(e) {}
+    }
+}
 
         function saveHistoryToStorage() {
             try {
