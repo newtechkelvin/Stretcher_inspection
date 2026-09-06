@@ -1797,17 +1797,15 @@
                 updatePendingBadges();
             }, 600);
 
-            // Google Sheets 跨網域同步（修復 CORS 與數據格式傳遞問題）
+            // Google Sheets 跨網域同步 (修復後：使用 text/plain 發送完整 JSON)
             if (GAS_URL) {
-                const formData = new FormData();
-                formData.append("data", JSON.stringify(record));
-
                 fetch(GAS_URL, {
                     method: "POST",
-                    mode: "no-cors",
-                    body: formData
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(record)
                 })
-                .then(() => console.log("跨網域同步已成功發送至 Google Cloud Sheet"))
+                .then(res => res.json())
+                .then(data => console.log("Google Cloud Sheet 傳輸結果:", data))
                 .catch(err => console.error("同步至 Google Sheet 失敗:", err));
             }
         }
@@ -2208,15 +2206,16 @@
                     rec.signature = signatureData;
                     updatedCount++;
 
+                    // 修正：以 text/plain;charset=utf-8 傳送 JSON 給 GAS
                     if (GAS_URL) {
-                        const formData = new FormData();
-                        formData.append("data", JSON.stringify(rec));
-
                         fetch(GAS_URL, {
                             method: "POST",
-                            mode: "no-cors",
-                            body: formData
-                        }).catch(e => console.error("批量 GAS 傳送失敗:", e));
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify(rec)
+                        })
+                        .then(res => res.json())
+                        .then(data => console.log("批量簽名傳送結果:", data))
+                        .catch(e => console.error("批量 GAS 傳送失敗:", e));
                     }
                 }
             });
