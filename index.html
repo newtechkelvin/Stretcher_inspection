@@ -1678,9 +1678,37 @@
             document.getElementById('pdf-modal').classList.remove('hidden');
         }
 
-        function closePdfModal() {
-            document.getElementById('pdf-modal').classList.add('hidden');
-        }
+        // 1. 新增表單重置與跳回 Step 1 函式
+function resetFormForNextInspection() {
+    // 重置上傳相片與簽名
+    uploadedPhotos = [];
+    renderPhotoGrid();
+    clearSignature();
+
+    // 重置 Step 4 輸入框
+    document.getElementById('signer-name').value = '';
+    document.getElementById('signer-dept').value = '';
+    document.getElementById('inspection-notes').value = '';
+
+    // 重置檢查清單項目為預設 (Pass)
+    setAllChecklistPass();
+
+    // 跳回 Step 1 第一頁
+    goToStep(1);
+
+    // 重新載入目前選取車牌的第一個床號
+    const currentHosp = getHospitalValue();
+    const currentVeh = document.getElementById('vehicle-select').value;
+    renderStretcherOptions(currentHosp, currentVeh);
+}
+
+// 2. 修改關閉 PDF 視窗函式，讓它關閉時自動跳回 Step 1
+function closePdfModal() {
+    document.getElementById('pdf-modal').classList.add('hidden');
+    
+    // 自動跳回新增檢查第一頁並重置表單
+    resetFormForNextInspection();
+}
 
         // Tab Switching & History View
         function switchTab(tab) {
