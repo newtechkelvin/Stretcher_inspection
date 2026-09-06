@@ -1795,7 +1795,7 @@
                 updatePendingBadges();
             }, 600);
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbx8cVeFUHg4fSq2yQ40owFVGTo-ySEG8Pfi9pOybZT__8ogIgrM3h5u_2UyVG2pCeir/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyAhd6VvCOJ9Evh5bKGBdPyXiQCe7ZZzWXIf1mXXXJms4zH12tw5NwOlFp7lcZsUgo/exec";
 
 if (GAS_URL) {
     console.log("正在發送資料至 GAS...", record);
@@ -2179,7 +2179,7 @@ if (GAS_URL) {
                     updatedCount++;
 
                     // 批量集中簽名時同步上傳更新至 GAS
-                    const GAS_URL = "https://script.google.com/macros/s/AKfycbzPUWcpLz36QvUgsemBb4ar2K1vHMIQod7ZaViz6-Resqf3E67cwyQi7rr-I22M48BD/exec";
+                    const GAS_URL = "https://script.google.com/macros/s/AKfycbyAhd6VvCOJ9Evh5bKGBdPyXiQCe7ZZzWXIf1mXXXJms4zH12tw5NwOlFp7lcZsUgo/exec";
                     if (GAS_URL) {
                         fetch(GAS_URL, {
                             method: "POST",
@@ -2296,14 +2296,52 @@ if (GAS_URL) {
             } catch(e) {}
         }
 
-        function loadHistoryFromStorage() {
-            try {
-                const data = localStorage.getItem('stretcher_inspections');
-                if(data) inspectionHistory = JSON.parse(data);
-            } catch(e) {
-                inspectionHistory = [];
+       // 從雲端 Google Sheet 自動載入最新歷史紀錄
+        function fetchHistoryFromCloud() {
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbyAhd6VvCOJ9Evh5bKGBdPyXiQCe7ZZzWXIf1mXXXJms4zH12tw5NwOlFp7lcZsUgo/exec";
+    
+            const tableBody = document.getElementById('history-table-body');
+            if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-teal-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在從 Google 雲端同步最新紀錄...</td></tr>`;
             }
-        }
+
+            fetch(GAS_URL)
+            .then(res => res.json())
+            .then(data => {
+            if (data.status === "success" && data.records) {
+                inspectionHistory = data.records;
+                saveHistoryToStorage(); // 順便更新本機快取
+                renderHistoryRecords();
+                updatePendingBadges();
+                showToast("成功從雲端同步最新紀錄！");
+                }
+            })
+            .catch(err => {
+                console.error("雲端讀取失敗，使用本機紀錄:", err);
+                loadHistoryFromStorage();
+                renderHistoryRecords();
+            });
+            }
+
+        // 修改 switchTab，當點擊「Drive 檔案庫」時自動觸發雲端讀取
+        function switchTab(tab) {
+    document.getElementById('tab-new-form').classList.add('hidden');
+    document.getElementById('tab-history').classList.add('hidden');
+
+    document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1";
+    document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1 relative";
+
+    if(tab === 'new-form') {
+        document.getElementById('tab-new-form').classList.remove('hidden');
+        document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1";
+    } else if(tab === 'history') {
+        document.getElementById('tab-history').classList.remove('hidden');
+        document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1 relative";
+        
+        // 每次切換至歷史頁面，即時向雲端同步數據
+        fetchHistoryFromCloud();
+    }
+}
 
         function toggleConfigModal() {
             document.getElementById('config-modal').classList.toggle('hidden');
