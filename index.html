@@ -311,57 +311,67 @@
                     </div>
                 </div>
 
-                <!-- STEP 4: Client Signature -->
-                <div id="step-4" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
-                    <div class="border-b border-slate-100 pb-4">
-                        <h2 class="text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
-                        <p class="text-xs text-slate-500">請客戶於下方螢幕簽名框內進行電子簽名確認</p>
-                    </div>
+               <!-- STEP 4: Client Signature -->
+<div id="step-4" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
+    <div class="border-b border-slate-100 pb-4">
+        <h2 class="text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
+        <p class="text-xs text-slate-500">請客戶於下方螢幕簽名框內進行電子簽名確認</p>
+    </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名 <span class="text-red-500">*</span></label>
-                                <input type="text" id="signer-name" placeholder="例: 王護士長 / 設備科李主任" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
-                                <input type="text" id="signer-dept" placeholder="例: 急症室 (A&E) / 生物醫學工程部" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
-                                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
-                            </div>
-                        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名 <span class="text-red-500">*</span></label>
+                <input type="text" id="signer-name" placeholder="例: 王護士長 / 設備科李主任" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+            </div>
+            
+            <!-- 修改點 1：所屬部門 / 職稱 下拉選單 + 動態自訂輸入框 -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
+                <select id="signer-dept-select" onchange="handleDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                    <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
+                    <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
+                    <option value="custom">其他</option>
+                </select>
+                <input type="text" id="signer-dept-custom" placeholder="請輸入自訂部門 / 職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+            </div>
 
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center">
-                                <label class="block text-sm font-medium text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
-                                <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
-                                    <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
-                                </button>
-                            </div>
-                            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
-                                <canvas id="signature-pad" class="w-full h-full block"></canvas>
-                                <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
-                                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署
-                                </div>
-                            </div>
-                            <p class="text-[11px] text-slate-400">完成簽名後點擊下方提交，系統將自動生成報告並上傳至 Google Drive。</p>
-                        </div>
-                    </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
+                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
+            </div>
+        </div>
 
-                    <div class="flex justify-between pt-4 border-t border-slate-100">
-                        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
-                            <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
-                        </button>
-                        <button type="button" onclick="submitInspectionForm()" class="px-7 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                            <span>確認簽收並同步 Drive</span>
-                        </button>
-                    </div>
+        <div class="space-y-2">
+            <div class="flex justify-between items-center">
+                <label class="block text-sm font-medium text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
+                <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
+                    <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
+                </button>
+            </div>
+            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
+                <canvas id="signature-pad" class="w-full h-full block"></canvas>
+                <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
+                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署
                 </div>
+            </div>
+            <!-- 修改點 2：更新簽名欄下方確認聲明文字 -->
+            <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
+                本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
+            </p>
+        </div>
+    </div>
 
+    <div class="flex justify-between pt-4 border-t border-slate-100">
+        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+            <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
+        </button>
+        <button type="button" onclick="submitInspectionForm()" class="px-7 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>確認簽收並同步 Drive</span>
+        </button>
+    </div>
+</div>
             </form>
         </div>
 
