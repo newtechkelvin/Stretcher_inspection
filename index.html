@@ -1628,26 +1628,53 @@
 function openPdfModal(record) {
     const body = document.getElementById('pdf-document-body');
     
-    let checklistRowsHtml = '';
-    record.checklist.forEach(item => {
-        let badgeClass = "bg-slate-100 text-slate-700";
-        if(item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
-        if(item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
+    // 1. 將檢測項目按「分類 (Category)」進行分組
+    const categorizedChecklist = {};
+    if (record.checklist && record.checklist.length > 0) {
+        record.checklist.forEach(item => {
+            const cat = item.category || "一般檢查項目";
+            if (!categorizedChecklist[cat]) {
+                categorizedChecklist[cat] = [];
+            }
+            categorizedChecklist[cat].push(item);
+        });
+    }
 
-        checklistRowsHtml += `
-            <tr class="border-b border-slate-200 text-xs">
-                <td class="py-1.5 px-3 text-slate-800">${item.name}</td>
-                <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
-                    <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
-                        ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
-                    </span>
+    // 2. 生成分類表格內容 HTML
+    let checklistHtml = '';
+    for (const [catName, items] of Object.entries(categorizedChecklist)) {
+        let itemsRows = '';
+        items.forEach(item => {
+            let badgeClass = "bg-slate-100 text-slate-700";
+            if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
+            if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
+
+            itemsRows += `
+                <tr class="border-b border-slate-100 text-xs">
+                    <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
+                    <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
+                            ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        checklistHtml += `
+            <!-- 分類標頭 -->
+            <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
+                <td class="py-1.5 px-3" colspan="2">
+                    <i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}
                 </td>
             </tr>
+            ${itemsRows}
         `;
-    });
+    }
 
+    // 3. 處理相片 HTML
     let photosHtml = '';
-    if(record.photos && record.photos.length > 0) {
+    if (record.photos && record.photos.length > 0) {
         photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
             <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄</h3>
             <div class="grid grid-cols-3 gap-3">`;
@@ -1663,6 +1690,7 @@ function openPdfModal(record) {
         photosHtml += `</div></div>`;
     }
 
+    // 4. 渲染完整 PDF 文件
     body.innerHTML = `
         <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
             <!-- 頂部標題區塊 -->
@@ -1679,14 +1707,13 @@ function openPdfModal(record) {
                 </div>
             </div>
 
-            <!-- 基本資料卡片 (紅框位置加上擔架床型號) -->
+            <!-- 基本資料卡片 -->
             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
                 <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
                     <div>
                         <span class="text-slate-500">醫院 / 機構：</span>
                         <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
                     </div>
-                    <!-- 右上角紅框顯示型號 -->
                     <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
                         擔架床型號: IRELAND DW-AL016
                     </div>
@@ -1699,18 +1726,18 @@ function openPdfModal(record) {
                 </div>
             </div>
 
-            <!-- 檢查項目表格 -->
+            <!-- 分類檢查項目表格 -->
             <div>
                 <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
                 <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
                     <thead>
-                        <tr class="bg-slate-100 text-slate-600 text-xs font-bold border-b border-slate-200">
-                            <th class="py-1.5 px-3">檢測項目</th>
+                        <tr class="bg-slate-800 text-white text-xs font-bold">
+                            <th class="py-1.5 px-3">檢測分類與項目</th>
                             <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${checklistRowsHtml}
+                        ${checklistHtml}
                     </tbody>
                 </table>
             </div>
