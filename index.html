@@ -1811,136 +1811,147 @@
         }
 
         // --- Generate PDF HTML Helper ---
-        function generatePdfHtmlString(record) {
-            const categorizedChecklist = {};
-            if (record.checklist && record.checklist.length > 0) {
-                record.checklist.forEach(item => {
-                    const cat = item.category || "一般檢查項目";
-                    if (!categorizedChecklist[cat]) categorizedChecklist[cat] = [];
-                    categorizedChecklist[cat].push(item);
-                });
-            }
+        // --- Generate PDF HTML Helper (相片與檢查項目相容增強版) ---
+function generatePdfHtmlString(record) {
+    const categorizedChecklist = {};
+    if (record.checklist && record.checklist.length > 0) {
+        record.checklist.forEach(item => {
+            const cat = item.category || "一般檢查項目";
+            if (!categorizedChecklist[cat]) categorizedChecklist[cat] = [];
+            categorizedChecklist[cat].push(item);
+        });
+    }
 
-            let checklistHtml = '';
-            for (const [catName, items] of Object.entries(categorizedChecklist)) {
-                let itemsRows = '';
-                items.forEach(item => {
-                    let badgeClass = "bg-slate-100 text-slate-700";
-                    if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
-                    if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
+    let checklistHtml = '';
+    const categories = Object.keys(categorizedChecklist);
 
-                    itemsRows += `
-                        <tr class="border-b border-slate-100 text-xs">
-                            <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
-                            <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
-                                <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
-                                    ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
-                                </span>
-                            </td>
-                        </tr>
-                    `;
-                });
+    if (categories.length === 0) {
+        checklistHtml = `
+            <tr class="text-xs text-slate-400 border-b border-slate-100">
+                <td colspan="2" class="py-3 text-center italic">所有檢查項目均測試合格與正常 (All Passed)</td>
+            </tr>
+        `;
+    } else {
+        for (const [catName, items] of Object.entries(categorizedChecklist)) {
+            let itemsRows = '';
+            items.forEach(item => {
+                let badgeClass = "bg-slate-100 text-slate-700";
+                if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
+                if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
 
-                checklistHtml += `
-                    <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
-                        <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
-                    </tr>
-                    ${itemsRows}
-                `;
-            }
-
-            let photosHtml = '';
-            if (record.photos && record.photos.length > 0) {
-                photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
-                    <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄</h3>
-                    <div class="grid grid-cols-3 gap-3">`;
-                record.photos.forEach(p => {
-                    photosHtml += `
-                        <div class="border border-slate-200 p-1.5 rounded-lg text-center bg-slate-50">
-                            <img src="${p.dataUrl}" class="h-20 w-full object-cover rounded mb-1">
-                            <p class="text-[10px] font-bold text-slate-800 truncate">${p.title}</p>
-                            <p class="text-[9px] text-slate-500 truncate">${p.note || ''}</p>
-                        </div>
-                    `;
-                });
-                photosHtml += `</div></div>`;
-            }
-
-            return `
-                <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
-                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
-                        <div>
-                            <h1 class="text-xl font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
-                            <p class="text-[11px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
-                        </div>
-                        <div class="text-right">
-                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-1">
-                                ${record.overallStatus}
+                itemsRows += `
+                    <tr class="border-b border-slate-100 text-xs">
+                        <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
+                        <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
+                                ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
                             </span>
-                            <p class="text-xs font-mono text-slate-500">編號: ${record.refNo}</p>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
+                `;
+            });
 
-                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
-                        <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                            <div>
-                                <span class="text-slate-500">醫院 / 機構：</span>
-                                <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
-                            </div>
-                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
-                                擔架床型號: IRELAND DW-AL016
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
-                            <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
-                            <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
-                            <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector}</strong></div>
-                            <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
-                        <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
-                            <thead>
-                                <tr class="bg-slate-800 text-white text-xs font-bold">
-                                    <th class="py-1.5 px-3">檢測分類與項目</th>
-                                    <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
-                                </tr>
-                            </thead>
-                            <tbody>${checklistHtml}</tbody>
-                        </table>
-                    </div>
-
-                    ${photosHtml}
-
-                    <div class="border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
-                        <div class="space-y-2 text-xs">
-                            <div>
-                                <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
-                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg min-h-[40px] text-slate-700 text-[11px]">
-                                    ${record.notes || '無特別備註。'}
-                                </div>
-                            </div>
-                            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-snug">
-                                <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
-                                <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-1 text-right">
-                            <p class="text-xs text-slate-500">客戶 / 醫院代表電子簽收:</p>
-                            ${record.signature ? `
-                                <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
-                                    <img src="${record.signature}" class="h-14 object-contain inline-block">
-                                </div>
-                            ` : `<div class="h-14 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
-                            <p class="text-xs font-bold text-slate-800">${record.signerName} (${record.signerDept || '驗收人員'})</p>
-                        </div>
-                    </div>
-                </div>
+            checklistHtml += `
+                <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
+                    <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
+                </tr>
+                ${itemsRows}
             `;
         }
+    }
+
+    let photosHtml = '';
+    if (record.photos && record.photos.length > 0) {
+        photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
+            <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄 (${record.photos.length} 張)</h3>
+            <div class="grid grid-cols-3 gap-3">`;
+        record.photos.forEach(p => {
+            photosHtml += `
+                <div class="border border-slate-200 p-1.5 rounded-lg text-center bg-slate-50">
+                    <img src="${p.dataUrl}" class="h-20 w-full object-cover rounded mb-1">
+                    <p class="text-[10px] font-bold text-slate-800 truncate">${p.title || '現場照片'}</p>
+                    <p class="text-[9px] text-slate-500 truncate">${p.note || ''}</p>
+                </div>
+            `;
+        });
+        photosHtml += `</div></div>`;
+    }
+
+    return `
+        <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
+            <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
+                <div>
+                    <h1 class="text-xl font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
+                    <p class="text-[11px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
+                </div>
+                <div class="text-right">
+                    <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-1">
+                        ${record.overallStatus || '檢查合格'}
+                    </span>
+                    <p class="text-xs font-mono text-slate-500">編號: ${record.refNo}</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+                <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
+                    <div>
+                        <span class="text-slate-500">醫院 / 機構：</span>
+                        <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
+                    </div>
+                    <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
+                        擔架床型號: IRELAND DW-AL016
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                    <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
+                    <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
+                    <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector || 'Chris Chong'}</strong></div>
+                    <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
+                <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                    <thead>
+                        <tr class="bg-slate-800 text-white text-xs font-bold">
+                            <th class="py-1.5 px-3">檢測分類與項目</th>
+                            <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
+                        </tr>
+                    </thead>
+                    <tbody>${checklistHtml}</tbody>
+                </table>
+            </div>
+
+            ${photosHtml}
+
+            <div class="border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
+                        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg min-h-[40px] text-slate-700 text-[11px]">
+                            ${record.notes || '無特別備註。'}
+                        </div>
+                    </div>
+                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-snug">
+                        <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
+                        <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
+                    </div>
+                </div>
+
+                <div class="space-y-1 text-right">
+                    <p class="text-xs text-slate-500">客戶 / 醫院代表電子簽收:</p>
+                    ${record.signature ? `
+                        <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
+                            <img src="${record.signature}" class="h-14 object-contain inline-block">
+                        </div>
+                    ` : `<div class="h-14 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
+                    <p class="text-xs font-bold text-slate-800">${record.signerName} (${record.signerDept || '驗收人員'})</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
         // --- PDF Rendering Modal ---
         function openPdfModal(record) {
@@ -1974,29 +1985,49 @@
         }
 
         // 從雲端 Google Sheet 自動載入最新歷史紀錄
-        function fetchHistoryFromCloud() {
-            const tableBody = document.getElementById('history-table-body');
-            if (tableBody) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-teal-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在從 Google 雲端同步最新紀錄...</td></tr>`;
-            }
+        // 從雲端 Google Sheet 自動載入最新歷史紀錄（並與本地高清照片/清單融合）
+function fetchHistoryFromCloud() {
+    const tableBody = document.getElementById('history-table-body');
+    if (tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-teal-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在從 Google 雲端同步最新紀錄...</td></tr>`;
+    }
 
-            fetch(GAS_URL)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === "success" && data.records) {
-                    inspectionHistory = data.records;
-                    saveHistoryToStorage();
-                    renderHistoryRecords();
-                    updatePendingBadges();
-                    showToast("成功從雲端同步最新紀錄！");
-                }
-            })
-            .catch(err => {
-                console.error("雲端讀取失敗，使用本機紀錄:", err);
-                loadHistoryFromStorage();
-                renderHistoryRecords();
+    fetch(GAS_URL)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success" && data.records) {
+            const cloudRecords = data.records;
+
+            // 讀取本地快取的完整資料（包含高清圖片與簽名）
+            let localRecords = [];
+            try {
+                localRecords = JSON.parse(localStorage.getItem('stretcher_inspections') || '[]');
+            } catch(e) {}
+
+            // 將雲端資料與本地資料融合
+            inspectionHistory = cloudRecords.map(cloudRec => {
+                const matchedLocal = localRecords.find(l => l.refNo === cloudRec.refNo);
+                return {
+                    ...cloudRec,
+                    // 若雲端無照片/簽名，自動優先引用本地備份
+                    photos: (cloudRec.photos && cloudRec.photos.length > 0) ? cloudRec.photos : (matchedLocal ? matchedLocal.photos || [] : []),
+                    signature: cloudRec.signature || (matchedLocal ? matchedLocal.signature : null),
+                    checklist: (cloudRec.checklist && cloudRec.checklist.length > 0) ? cloudRec.checklist : (matchedLocal ? matchedLocal.checklist || [] : [])
+                };
             });
+
+            saveHistoryToStorage();
+            renderHistoryRecords();
+            updatePendingBadges();
+            showToast("成功從雲端同步最新紀錄！");
         }
+    })
+    .catch(err => {
+        console.error("雲端讀取失敗，使用本機紀錄:", err);
+        loadHistoryFromStorage();
+        renderHistoryRecords();
+    });
+}
 
         function switchTab(tab) {
             document.getElementById('tab-new-form').classList.add('hidden');
