@@ -1795,18 +1795,24 @@
                 updatePendingBadges();
             }, 600);
 
-            // 已更新為最新發布之 GAS URL 並修正前端以 JSON Blob 穿越 CORS 發送
-            const GAS_URL = "https://script.google.com/macros/s/AKfycbzPUWcpLz36QvUgsemBb4ar2K1vHMIQod7ZaViz6-Resqf3E67cwyQi7rr-I22M48BD/exec";
-            if (GAS_URL) {
-                try {
-                    fetch(GAS_URL, {
-                        method: "POST",
-                        mode: "no-cors",
-                        headers: { "Content-Type": "text/plain" },
-                        body: JSON.stringify(record)
-                    }).catch(e => console.error("GAS 傳送失敗:", e));
-                } catch(e) {}
-            }
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzPUWcpLz36QvUgsemBb4ar2K1vHMIQod7ZaViz6-Resqf3E67cwyQi7rr-I22M48BD/exec";
+
+if (GAS_URL) {
+    // 複製一份資料，先將大體積的相片與簽名歸零測試連線
+    var testRecord = Object.assign({}, record);
+    testRecord.photos = []; 
+    testRecord.signature = null;
+
+    console.log("正在發送測試資料至 GAS...", testRecord);
+
+    fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(testRecord)
+    })
+    .then(res => console.log("GAS 發送完成 (Response Status):", res.status))
+    .catch(err => console.error("GAS 傳送發生錯誤:", err));
+}
         }
 
         // --- Generate PDF HTML Helper ---
