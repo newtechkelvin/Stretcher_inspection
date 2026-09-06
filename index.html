@@ -1005,12 +1005,94 @@ function processLabelOCR(event) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
-        // 對黑底白字的銘牌進行專屬預處理 (顏色反轉 + 對比度增強)
-        preprocessImageForOCR(e.target.result, function(processedDataUrl) {
-            runTesseractOCR(processedDataUrl);
+        // 先進行圖片適度縮放壓縮 (800px 寬度對於 OCR 已經非常足夠)
+        compressImageForOCR(e.target.result, 800, function(compressedDataUrl) {
+            runTesseractOCR(compressedDataUrl);
         });
     };
     reader.readAsDataURL(file);
+}
+
+function compressImageForOCR(dataUrl, maxDim, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        let w = img.width;
+        let h = img.height;
+
+        if (w > maxDim || h > maxDim) {
+            if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+            } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+            }
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+}
+
+function runTesseractOCR(imageDataUrl) {
+    const loadingModal = document.getElementById('ocr-loading-modal');
+    const statusText = document.getElementById('ocr-status-text');
+    const progressBar = document.getElementById('ocr-progress-bar');
+
+    loadingModal.classList.remove('hidden');
+    statusText.innerText = "正在傳送至 Google Cloud 進行黑底銘牌辨識...";
+    progressBar.style.width = "40%";
+
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
+
+    fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+            action: "ocr_scan",
+            imageData: imageDataUrl
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        loadingModal.classList.add('hidden');
+        
+        if (data.status === "success" && data.rawText) {
+            console.log("Google Cloud OCR 提取文字:\n", data.rawText);
+            
+            const cleaned = data.rawText.toUpperCase().replace(/[\r\n]/g, ' ');
+
+            // 精準比對 25N 或 26N 開頭的 10-11 位編號 (例如 25N0626147)
+            const regex = /(2[56]N[0-9A-Z]{7,8})/gi;
+            const match = cleaned.match(regex);
+
+            if (match && match.length > 0) {
+                applyRecognizedSN(match[0].toUpperCase());
+            } else {
+                // 備用匹配策略 (去空格破折號)
+                const compact = cleaned.replace(/[\-\s]/g, '');
+                const match2 = compact.match(/2[56]N[0-9A-Z]{7,8}/gi);
+                if (match2 && match2.length > 0) {
+                    applyRecognizedSN(match2[0].toUpperCase());
+                } else {
+                    showToast("未能辨識到 25N/26N 床號，請手動選擇", "error");
+                }
+            }
+        } else {
+            console.error("GAS 傳回錯誤訊息:", data.message);
+            showToast(data.message || "雲端辨識失敗，請重試", "error");
+        }
+    })
+    .catch(err => {
+        console.error("OCR API Error:", err);
+        loadingModal.classList.add('hidden');
+        showToast("網路請求失敗，請檢查連線", "error");
+    });
 }
 
 // 圖片預處理：將黑底白字轉為白底黑字，大幅提升對比度
