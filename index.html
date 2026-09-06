@@ -997,9 +997,7 @@
             return selectEl.value;
         }
 
-       // --- 2. Label Photo OCR Recognition (Optimized for Black Background Labels) ---
-
-// --- 2. Label Photo OCR Recognition (High-Precision Contrast Inversion) ---
+// --- 2. Label Photo OCR Recognition (High-Contrast Local Inversion) ---
 
 function processLabelOCR(event) {
     const file = event.target.files[0];
@@ -1007,15 +1005,15 @@ function processLabelOCR(event) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
-        // 前端壓縮圖片至適當大小，加速網絡傳輸與 Google OCR 處理
-        compressImageForOCR(e.target.result, 1000, function(compressedDataUrl) {
-            runGoogleCloudOCR(compressedDataUrl);
+        // 先進行圖片「黑底白字 ➔ 白底黑字」反轉與高對比二值化處理
+        preprocessBlackLabelImage(e.target.result, function(enhancedDataUrl) {
+            runTesseractOCR(enhancedDataUrl);
         });
     };
     reader.readAsDataURL(file);
 }
 
-// 關鍵處理：將黑色管身與貼紙轉為純白，白字轉為深黑，大幅提高 Tesseract.js 辨識率
+// 核心功能：將黑色管身與黑底貼紙轉為純白，白字轉為純黑，極大化文字對比度
 function preprocessBlackLabelImage(dataUrl, callback) {
     const img = new Image();
     img.onload = function() {
@@ -1024,7 +1022,7 @@ function preprocessBlackLabelImage(dataUrl, callback) {
         
         let w = img.width;
         let h = img.height;
-        const maxDim = 1200; // 適當縮放，避免手機大圖拖慢速度
+        const maxDim = 1200; // 限制尺寸以提升運算與辨識速度
         if (w > maxDim || h > maxDim) {
             if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
             else { w = Math.round((w * maxDim) / h); h = maxDim; }
@@ -1037,14 +1035,11 @@ function preprocessBlackLabelImage(dataUrl, callback) {
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
-        // 反轉顏色 + 灰階 + 灰階閾值處理 (Thresholding)
+        // 色彩反轉 (Invert) + 灰階化 (Grayscale) + 閾值二值化 (Threshold)
         for (let i = 0; i < data.length; i += 4) {
-            // 計算灰階亮度
             let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-            // 反轉：原本白的 (字體) 變成黑，原本黑的 (背景) 變成白
-            let inv = 255 - gray;
-            // 自適應對比拉高
-            inv = inv > 125 ? 255 : 0; 
+            let inv = 255 - gray; // 反轉：白字變黑字，黑背景變白背景
+            inv = inv > 120 ? 255 : 0; // 高對比拉高
 
             data[i] = inv;     // R
             data[i+1] = inv;   // G
@@ -1082,27 +1077,26 @@ function runTesseractOCR(imageDataUrl) {
         loadingModal.classList.add('hidden');
         console.log("OCR 提取原始文字:", text);
 
-        // 1. 文字初步清理與錯字自動修復 (例如常見誤認：字母 O -> 0, I -> 1)
+        // 1. 文字初步清理與常見 OCR 錯字修復 (例如 O 誤認為 0)
         let cleaned = text.toUpperCase()
             .replace(/[\r\n]/g, ' ')
             .replace(/O(?=\d)/g, '0')   // O 在數字前修復為 0
             .replace(/(?<=\d)O/g, '0');  // 數字後的 O 修復為 0
 
-        // 2. 規則 1：直接搜尋 25N 或 26N 開頭的 10-11 位編號 (如 25N0626147)
-        const snRegex1 = /(2[56]N[0-9A-Z]{7,8})/g;
+        // 2. 規則 1：搜尋 25N/26N/25NG/26NG 開頭的標準編號 (如 25N0626147)
+        const snRegex1 = /(2[56]N[G]?[0-9A-Z]{7,8})/g;
         let match = cleaned.match(snRegex1);
 
         if (match && match.length > 0) {
             let resultSN = match[0].replace(/[^0-9A-Z]/g, '');
-            // 修正常見誤讀 (例如 25H/25M 修正為 25N)
-            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
+            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N'); // 自動將 H/M 糾錯為 N
             applyRecognizedSN(resultSN);
             return;
         }
 
         // 3. 規則 2：處理帶有破折號或空格的情況 (例如 "25N- 25N0626147")
         const compact = cleaned.replace(/[\-\s]/g, '');
-        const snRegex2 = /(2[56][NHM][0-9A-Z]{7,8})/g;
+        const snRegex2 = /(2[56][NHM][G]?[0-9A-Z]{7,8})/g;
         match = compact.match(snRegex2);
 
         if (match && match.length > 0) {
@@ -1112,7 +1106,7 @@ function runTesseractOCR(imageDataUrl) {
             return;
         }
 
-        // 4. 降級規則：任何 2 開頭的 10 位數字組合
+        // 4. 備用降級規則：搜尋任何以 2 開頭的 10 位數字組合
         const looseMatch = compact.match(/(2\d{9,10})/g);
         if (looseMatch && looseMatch.length > 0) {
             applyRecognizedSN(looseMatch[0]);
@@ -1127,102 +1121,6 @@ function runTesseractOCR(imageDataUrl) {
         showToast("相片辨識過程發生錯誤，請重試", "error");
     });
 }
-        
-function compressImageForOCR(dataUrl, maxDim, callback) {
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        let w = img.width;
-        let h = img.height;
-
-        if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else { w = Math.round((w * maxDim) / h); h = maxDim; }
-        }
-
-        canvas.width = w;
-        canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-        callback(canvas.toDataURL('image/jpeg', 0.85));
-    };
-    img.src = dataUrl;
-}
-
-        function runGoogleCloudOCR(imageDataUrl) {
-    const loadingModal = document.getElementById('ocr-loading-modal');
-    const statusText = document.getElementById('ocr-status-text');
-    const progressBar = document.getElementById('ocr-progress-bar');
-
-    loadingModal.classList.remove('hidden');
-    statusText.innerText = "正在傳送至 Google Drive Vision 辨識黑底銘牌...";
-    progressBar.style.width = "40%";
-
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
-
-    fetch(GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-            action: "ocr_scan",
-            imageData: imageDataUrl
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        loadingModal.classList.add('hidden');
-        
-        if (data.status === "success" && data.rawText) {
-            console.log("Google Cloud Native OCR 提取完整文字:\n", data.rawText);
-            
-            const cleaned = data.rawText.toUpperCase().replace(/[\r\n]/g, ' ');
-
-            // 1. 精準比對 25N/26N/25NG/26NG 開頭的 10-11 位編號 (如 25N0626147)
-            const regex = /(2[56]N[G]?[0-9A-Z]{7,8})/gi;
-            const match = cleaned.match(regex);
-
-            if (match && match.length > 0) {
-                applyRecognizedSN(match[0].toUpperCase());
-            } else {
-                // 2. 備用匹配策略：去空和破折號後再搜尋
-                const compact = cleaned.replace(/[\-\s]/g, '');
-                const match2 = compact.match(/2[56]N[G]?[0-9A-Z]{7,8}/gi);
-                if (match2 && match2.length > 0) {
-                    applyRecognizedSN(match2[0].toUpperCase());
-                } else {
-                    showToast("未能辨識到 25N/26N 床號，請手動選擇", "error");
-                }
-            }
-        } else {
-            showToast("雲端辨識失敗，請重試", "error");
-        }
-    })
-    .catch(err => {
-        console.error("OCR Network Error:", err);
-        loadingModal.classList.add('hidden');
-        showToast("網絡請求失敗，請檢查連線", "error");
-    });
-}
-        
-        function applyRecognizedSN(detectedSN) {
-            showToast(`成功辨識標籤床號: ${detectedSN}`);
-
-            // Find if this SN exists in dbMap to auto-fill Hospital and Vehicle
-            const existingLoc = findStretcherLocation(detectedSN);
-
-            if (existingLoc) {
-                // Auto-fill Hospital and Vehicle
-                renderHospitalOptions(existingLoc.hospital);
-                renderVehicleOptions(existingLoc.hospital, existingLoc.vehicle);
-                renderStretcherOptions(existingLoc.hospital, existingLoc.vehicle, detectedSN);
-                showToast(`已自動連動 hospital: ${existingLoc.hospital.split(' ')[0]} ➔ 車牌: ${existingLoc.vehicle}`);
-            } else {
-                // If SN is new, keep current Hospital & Vehicle and prompt assignment
-                document.getElementById('stretcher-id').value = detectedSN;
-                checkStretcherOwnershipAndPrompt(detectedSN);
-            }
-        }
-
         // --- 3. Custom Checklist Management Logic ---
 
         function loadChecklistCategories() {
