@@ -1809,13 +1809,7 @@ if (GAS_URL) {
     .catch(err => console.error("GAS 傳送發生錯誤:", err));
 }
                 }
-        {
-            saveHistoryToStorage();
-            closeBatchSignModal();
-            renderHistoryRecords();
-            updatePendingBadges();
-            showToast(`已成功為 ${updatedCount} 份報告寫入批量集中簽收！`);
-        }
+
 
         // --- Generate PDF HTML Helper ---
         function generatePdfHtmlString(record) {
