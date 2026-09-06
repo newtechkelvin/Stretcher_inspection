@@ -1808,9 +1808,8 @@ if (GAS_URL) {
     .then(res => console.log("GAS 發送完成 (Response Status):", res.status))
     .catch(err => console.error("GAS 傳送發生錯誤:", err));
 }
-                }
-            });
-
+                });
+        {
             saveHistoryToStorage();
             closeBatchSignModal();
             renderHistoryRecords();
