@@ -997,69 +997,123 @@
             return selectEl.value;
         }
 
-        // --- 2. Label Photo OCR Recognition (Tesseract.js) ---
+        // --- 2. Label Photo OCR Recognition (Tesseract.js Enhanced) ---
 
-        function processLabelOCR(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+function processLabelOCR(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                runTesseractOCR(e.target.result);
-            };
-            reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // 先進行圖片黑白高對比預處理，大幅提升 OCR 辨識率
+        preprocessImageForOCR(e.target.result, function(processedDataUrl) {
+            runTesseractOCR(processedDataUrl);
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+// 圖片預處理：轉灰階 + 提升對比度，解決手機影相字跡模糊問題
+function preprocessImageForOCR(dataUrl, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 限制最大寬度以加快辨識速度
+        const maxDim = 1200;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+            if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+            } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+            }
         }
 
-        function runTesseractOCR(imageDataUrl) {
-            const loadingModal = document.getElementById('ocr-loading-modal');
-            const statusText = document.getElementById('ocr-status-text');
-            const progressBar = document.getElementById('ocr-progress-bar');
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
 
-            loadingModal.classList.remove('hidden');
-            statusText.innerText = "載入 OCR 辨識引擎...";
-            progressBar.style.width = "20%";
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
 
-            Tesseract.recognize(
-                imageDataUrl,
-                'eng',
-                {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const p = Math.round(m.progress * 100);
-                            statusText.innerText = `辨識分析中... ${p}%`;
-                            progressBar.style.width = `${p}%`;
-                        }
-                    }
-                }
-            ).then(({ data: { text } }) => {
-                loadingModal.classList.add('hidden');
-                
-                // Extract 10-11 character alphanumeric starting with '2' (e.g. 26NG0903162)
-                const regex = /\b2[0-9A-Z]{9,10}\b/gi;
-                const matches = text.match(regex);
-
-                if (matches && matches.length > 0) {
-                    const detectedSN = matches[0].toUpperCase();
-                    applyRecognizedSN(detectedSN);
-                } else {
-                    // Try looser regex with dashes or spaces like 26N-26NG0903162
-                    const fallbackRegex = /2[0-9A-Z\-]{9,12}/gi;
-                    const fbMatches = text.match(fallbackRegex);
-                    if (fbMatches && fbMatches.length > 0) {
-                        const cleanFb = fbMatches[0].replace(/[^0-9A-Z]/gi, '').toUpperCase();
-                        if (cleanFb.length >= 10 && cleanFb.startsWith('2')) {
-                            applyRecognizedSN(cleanFb);
-                            return;
-                        }
-                    }
-
-                    showToast("未能自動識別到 2 開頭的 10-11 位標籤編號，請手動選擇或輸入", "error");
-                }
-            }).catch(err => {
-                loadingModal.classList.add('hidden');
-                showToast("照片辨識過程發生錯誤，請重試", "error");
-            });
+        // 二值化/高對比灰階處理
+        for (let i = 0; i < data.length; i += 4) {
+            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            // 對比度拉高
+            const v = avg > 110 ? 255 : 0;
+            data[i] = v;     // Red
+            data[i + 1] = v; // Green
+            data[i + 2] = v; // Blue
         }
+
+        ctx.putImageData(imgData, 0, 0);
+        callback(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.src = dataUrl;
+}
+
+function runTesseractOCR(imageDataUrl) {
+    const loadingModal = document.getElementById('ocr-loading-modal');
+    const statusText = document.getElementById('ocr-status-text');
+    const progressBar = document.getElementById('ocr-progress-bar');
+
+    loadingModal.classList.remove('hidden');
+    statusText.innerText = "載入 AI 辨識引擎中...";
+    progressBar.style.width = "15%";
+
+    Tesseract.recognize(
+        imageDataUrl,
+        'eng',
+        {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const p = Math.round(m.progress * 100);
+                    statusText.innerText = `銘牌分析中... ${p}%`;
+                    progressBar.style.width = `${p}%`;
+                }
+            }
+        }
+    ).then(({ data: { text } }) => {
+        loadingModal.classList.add('hidden');
+        console.log("OCR Raw Extracted Text:", text);
+
+        // 清理文字：將常見誤認字元進行更正 (例如將字母 O 錯認為 0, I 錯認為 1)
+        const cleanedText = text.toUpperCase()
+            .replace(/[\r\n\t]/g, ' ')
+            .replace(/[^0-9A-Z\-\s]/g, '');
+
+        // 規則 1：搜尋標準 10-11 位以 2 開頭的編號 (如 26NG0903162, 25N0626099)
+        const primaryRegex = /\b2[0-9A-Z]{9,10}\b/gi;
+        let matches = cleanedText.match(primaryRegex);
+
+        if (matches && matches.length > 0) {
+            applyRecognizedSN(matches[0].toUpperCase());
+            return;
+        }
+
+        // 規則 2：處理中間有空格/破折號的情況 (如 "26N- 26NG0903162" 或 "26N 0626099")
+        const compactText = cleanedText.replace(/[\-\s]/g, '');
+        const secondaryRegex = /2[0-9A-Z]{9,10}/gi;
+        matches = compactText.match(secondaryRegex);
+
+        if (matches && matches.length > 0) {
+            applyRecognizedSN(matches[0].toUpperCase());
+            return;
+        }
+
+        showToast("未能自動辨識到以 2 開頭的擔架床編號，請確保對焦清晰或手動選擇", "error");
+
+    }).catch(err => {
+        console.error("OCR Exception:", err);
+        loadingModal.classList.add('hidden');
+        showToast("照片辨識發生錯誤，請重試", "error");
+    });
+}
 
         function applyRecognizedSN(detectedSN) {
             showToast(`成功辨識標籤床號: ${detectedSN}`);
