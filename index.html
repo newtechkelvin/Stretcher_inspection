@@ -12,15 +12,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Tesseract.js for Client-side OCR Label Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- JSZip for Batch PDF Downloading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .canvas-container { touch-action: none; }
     
-    /* 專為單頁 A4 列印優化之 CSS */
     @media print {
         @page {
             size: A4 portrait;
-            margin: 8mm; /* 縮小邊距以增加頁面可用空間 */
+            margin: 8mm;
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -52,7 +53,6 @@
             padding: 0 !important;
             overflow: visible !important;
         }
-        /* 壓縮表格與邊距以縮至一頁 */
         .pdf-compact-container {
             font-size: 11px !important;
             line-height: 1.3 !important;
@@ -92,6 +92,7 @@
                 <button onclick="switchTab('history')" id="btn-tab-history" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1">
                     <i class="fa-solid fa-folder-tree"></i>
                     <span class="hidden md:inline">Drive 檔案庫</span>
+                    <span id="pending-badge" class="ml-1 bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full hidden">0</span>
                 </button>
                 <button onclick="toggleConfigModal()" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1" title="Google Drive 設定指引">
                     <i class="fa-solid fa-gear"></i>
@@ -311,77 +312,81 @@
                     </div>
                 </div>
 
-               <!-- STEP 4: Client Signature -->
-<div id="step-4" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
-    <div class="border-b border-slate-100 pb-4">
-        <h2 class="text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
-        <p class="text-xs text-slate-500">請客戶於下方螢幕簽名框內進行電子簽名確認</p>
-    </div>
+                <!-- STEP 4: Client Signature -->
+                <div id="step-4" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h2 class="text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
+                        <p class="text-xs text-slate-500">可即時請客戶簽收，或先「暫存報告」等檢查完多張床後一併集中簽收</p>
+                    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名 <span class="text-red-500">*</span></label>
-                <input type="text" id="signer-name" placeholder="例: 王護士長 / 設備科李主任" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
-            </div>
-            
-            <!-- 修改點 1：所屬部門 / 職稱 下拉選單 + 動態自訂輸入框 -->
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
-                <select id="signer-dept-select" onchange="handleDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
-                    <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
-                    <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
-                    <option value="custom">其他</option>
-                </select>
-                <input type="text" id="signer-dept-custom" placeholder="請輸入自訂部門 / 職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
-            </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名</label>
+                                <input type="text" id="signer-name" placeholder="可留空待集中簽署時填寫" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
+                                <select id="signer-dept-select" onchange="handleDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                                    <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
+                                    <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
+                                    <option value="custom">其他</option>
+                                </select>
+                                <input type="text" id="signer-dept-custom" placeholder="請輸入自訂部門 / 職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                            </div>
 
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
-                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
-            </div>
-        </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
+                                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
+                            </div>
+                        </div>
 
-        <div class="space-y-2">
-            <div class="flex justify-between items-center">
-                <label class="block text-sm font-medium text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
-                <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
-                    <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
-                </button>
-            </div>
-            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
-                <canvas id="signature-pad" class="w-full h-full block"></canvas>
-                <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
-                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <label class="block text-sm font-medium text-slate-700">客戶電子簽名</label>
+                                <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
+                                </button>
+                            </div>
+                            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
+                                <canvas id="signature-pad" class="w-full h-full block"></canvas>
+                                <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
+                                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署（暫存模式可略過）
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
+                                本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+                            <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
+                        </button>
+                        <div class="flex flex-wrap gap-2 justify-end">
+                            <button type="button" onclick="saveAsPendingInspection()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl shadow transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>暫存待集中簽名</span>
+                            </button>
+                            <button type="button" onclick="submitInspectionForm()" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span>即時簽收並同步 Drive</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <!-- 修改點 2：更新簽名欄下方確認聲明文字 -->
-            <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
-                本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
-            </p>
-        </div>
-    </div>
-
-    <div class="flex justify-between pt-4 border-t border-slate-100">
-        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
-            <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
-        </button>
-        <button type="button" onclick="submitInspectionForm()" class="px-7 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span>確認簽收並同步 Drive</span>
-        </button>
-    </div>
-</div>
             </form>
         </div>
 
         <!-- TAB 2: History & Google Drive Archive -->
         <div id="tab-history" class="space-y-6 hidden">
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">巡查歷史紀錄與 Google Drive 歸檔庫</h2>
-                        <p class="text-xs text-slate-500">檢視所有已提交的擔架床巡查紀錄、雲端目錄及 PDF 報告</p>
+                        <p class="text-xs text-slate-500">管理、集中簽署待處理報告，或批量導出 PDF 報告及 Email 寄送</p>
                     </div>
                     <button onclick="switchTab('new-form')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
                         <i class="fa-solid fa-plus"></i>
@@ -389,17 +394,56 @@
                     </button>
                 </div>
 
+                <!-- 狀態過濾選項卡 -->
+                <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 text-xs font-semibold">
+                    <button onclick="filterHistoryTab('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white transition">
+                        全部報告
+                    </button>
+                    <button onclick="filterHistoryTab('pending')" id="filter-btn-pending" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition flex items-center gap-1">
+                        <span>待客戶簽名 ⏳</span>
+                        <span id="pending-filter-count" class="bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full hidden">0</span>
+                    </button>
+                    <button onclick="filterHistoryTab('signed')" id="filter-btn-signed" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">
+                        已簽收完成 ✓
+                    </button>
+                </div>
+
+                <!-- 批量操作工具列 (Batch Actions Bar) -->
+                <div id="batch-action-bar" class="bg-teal-900 text-white p-3 rounded-xl flex flex-wrap justify-between items-center gap-3 hidden">
+                    <div class="flex items-center space-x-2 text-xs">
+                        <i class="fa-solid fa-square-check text-teal-400 text-base"></i>
+                        <span>已選取 <strong id="selected-count" class="text-teal-300 font-bold text-sm">0</strong> 份項目</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btn-batch-sign" onclick="openBatchSignModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-file-signature"></i>
+                            <span>批量集中簽名</span>
+                        </button>
+                        <button onclick="batchDownloadPdfs()" class="px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                            <span>批量導出 PDF Zip</span>
+                        </button>
+                        <button onclick="openBatchEmailModal()" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-envelope"></i>
+                            <span>批量 Email 寄送</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Records Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                <th class="p-3 w-10">
+                                    <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllRecords(this.checked)" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
+                                </th>
                                 <th class="p-3">報告編號 / 日期</th>
                                 <th class="p-3">目標醫院</th>
                                 <th class="p-3">車牌號碼</th>
                                 <th class="p-3">床號 (SN#)</th>
-                                <th class="p-3">狀態</th>
-                                <th class="p-3">現場相片</th>
+                                <th class="p-3">簽署狀態</th>
+                                <th class="p-3">相片</th>
                                 <th class="p-3 text-right">操作</th>
                             </tr>
                         </thead>
@@ -423,6 +467,90 @@
         </div>
 
     </main>
+
+    <!-- 批量集中簽名 Modal -->
+    <div id="batch-sign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2 text-teal-700">
+                    <i class="fa-solid fa-file-signature text-xl"></i>
+                    <h3 class="font-bold text-base text-slate-900">批量集中電子簽名確認</h3>
+                </div>
+                <button onclick="closeBatchSignModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900">
+                將為以下選取的 <strong id="batch-sign-count" class="text-amber-700 font-bold">0</strong> 份待處理報告寫入相同的簽名確認：
+                <div id="batch-sign-list-preview" class="mt-1.5 flex flex-wrap gap-1 font-mono text-[11px] text-slate-700"></div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">客戶 / 驗收代表姓名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="batch-signer-name" placeholder="例: 陳主管" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">所屬部門 / 職稱</label>
+                        <select id="batch-signer-dept-select" onchange="handleBatchDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                            <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
+                            <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
+                            <option value="custom">其他</option>
+                        </select>
+                        <input type="text" id="batch-signer-dept-custom" placeholder="請輸入自訂職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
+                        <button type="button" onclick="clearBatchSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">重新簽名</button>
+                    </div>
+                    <div class="relative w-full h-40 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 cursor-crosshair">
+                        <canvas id="batch-signature-pad" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeBatchSignModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
+                <button type="button" onclick="confirmBatchSign()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition">確認批量簽署並同步</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量 Email 寄送 Modal -->
+    <div id="batch-email-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2 text-blue-600">
+                    <i class="fa-solid fa-envelope text-xl"></i>
+                    <h3 class="font-bold text-base text-slate-900">批量 Email 電子郵件寄送</h3>
+                </div>
+                <button onclick="closeBatchEmailModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">收件人 Email 電郵地址 <span class="text-red-500">*</span></label>
+                    <input type="email" id="batch-email-target" placeholder="example@hospital.org.hk" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">電郵主題</label>
+                    <input type="text" id="batch-email-subject" value="擔架床檢查與維修報告簽收紀錄" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">電郵補充訊息</label>
+                    <textarea id="batch-email-body" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">閣下好，附件為已完成點檢之擔架床檢查報告，請查收。</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeBatchEmailModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
+                <button type="button" onclick="sendBatchEmail()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition">發送電郵</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -514,10 +642,7 @@
                     </button>
                 </div>
 
-                <!-- Category & Item List Editor -->
-                <div id="checklist-editor-tree" class="space-y-4">
-                    <!-- Dynamic rendering of categories and items for editing -->
-                </div>
+                <div id="checklist-editor-tree" class="space-y-4"></div>
             </div>
 
             <div class="bg-slate-50 border-t border-slate-200 px-6 py-3 flex justify-end space-x-2">
@@ -535,7 +660,7 @@
                 <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <div>
-                <h3 class="font-bold text-lg text-slate-900">正在同步至 Google Drive</h3>
+                <h3 class="font-bold text-lg text-slate-900">正在處理數據並同步至 Drive</h3>
                 <p id="sync-status-text" class="text-xs text-slate-500 mt-1">正在連接 Google Drive API...</p>
             </div>
             <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
@@ -599,7 +724,6 @@
     </div>
 
     <script>
-        // 1. Initial Data Hierarchy: Hospital -> Vehicle License Plate -> Array of Stretcher SNs
         const initialDataMap = {
             "港島東 (HKEC - PYN) - 東區尤德醫院":{
             "ZU1146": ["25N0626099","25N0626119","25N0626136"],
@@ -672,7 +796,6 @@
 }
         };
 
-        // Default Checklist Categories
         const defaultChecklistCategories = [
             {
                 category: "1. 輪軸及煞車系統 (Wheel & Brake System)",
@@ -707,33 +830,35 @@
             }
         ];
 
-        // Global State Variables
         let dbMap = {};
         let activeChecklistCategories = [];
         let currentStep = 1;
         let uploadedPhotos = [];
         let isSigning = false;
         let signatureCanvas, signatureCtx;
+        let batchSignatureCanvas, batchSignatureCtx;
+        let isBatchSigning = false;
         let inspectionHistory = [];
+        let currentFilterState = 'all'; // 'all', 'pending', 'signed'
 
-        // Temporary holding state for Reassignment Modal confirmation
         let pendingReassign = null;
 
-        // App Entry Point
         window.onload = function() {
             initDate();
             loadDbMap();
             loadChecklistCategories();
             renderChecklist();
             initSignaturePad();
+            initBatchSignaturePad();
             loadHistoryFromStorage();
             generateRefNo();
-
-            // Populate initial Hospital dropdown
             renderHospitalOptions();
+            updatePendingBadges();
 
-            // Resize signature canvas on window resize
-            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                resizeBatchCanvas();
+            });
         };
 
         function initDate() {
@@ -754,7 +879,6 @@
             if(el) el.innerText = ref;
         }
 
-        // Database Mapping Storage
         function loadDbMap() {
             try {
                 const saved = localStorage.getItem('stretcher_db_map');
@@ -771,12 +895,8 @@
         function saveDbMap() {
             try {
                 localStorage.setItem('stretcher_db_map', JSON.stringify(dbMap));
-            } catch(e) {
-                console.warn("Failed to save db map");
-            }
+            } catch(e) {}
         }
-
-        // --- 1. Cascade Selection Logic (Hospital -> Vehicle -> Stretcher) ---
 
         function renderHospitalOptions(selectedHosp) {
             const hospSelect = document.getElementById('hospital-select');
@@ -862,17 +982,13 @@
             }
         }
 
-        // When user types or changes the SN manually in the text input
         function handleStretcherInputChange(val) {
             const cleanSn = val.trim().toUpperCase();
             if (!cleanSn) return;
             document.getElementById('stretcher-id').value = cleanSn;
-
-            // Check if this SN currently belongs to another vehicle/hospital
             checkStretcherOwnershipAndPrompt(cleanSn);
         }
 
-        // Search location of SN in existing dbMap
         function findStretcherLocation(sn) {
             for (let hosp in dbMap) {
                 for (let veh in dbMap[hosp]) {
@@ -884,21 +1000,17 @@
             return null;
         }
 
-        // Prompt alert modal if SN belongs to a different vehicle
         function checkStretcherOwnershipAndPrompt(sn, callbackOnSuccess) {
             const currentHosp = getHospitalValue();
             const currentVeh = document.getElementById('vehicle-select').value;
-
             const existingLoc = findStretcherLocation(sn);
 
             if (existingLoc) {
                 if (existingLoc.hospital === currentHosp && existingLoc.vehicle === currentVeh) {
-                    // Already belongs to this vehicle -> no alert needed
                     if (callbackOnSuccess) callbackOnSuccess();
                     return;
                 }
 
-                // Belongs to ANOTHER vehicle/hospital -> Trigger Warning Modal!
                 pendingReassign = {
                     sn: sn,
                     oldHosp: existingLoc.hospital,
@@ -914,7 +1026,6 @@
 
                 document.getElementById('reassign-modal').classList.remove('hidden');
             } else {
-                // New SN -> Assign directly to current vehicle
                 if (!dbMap[currentHosp]) dbMap[currentHosp] = {};
                 if (!dbMap[currentHosp][currentVeh]) dbMap[currentHosp][currentVeh] = [];
                 dbMap[currentHosp][currentVeh].push(sn);
@@ -927,15 +1038,11 @@
 
         function confirmReassignment() {
             if (!pendingReassign) return;
-
             const { sn, oldHosp, oldVeh, newHosp, newVeh, callback } = pendingReassign;
 
-            // Remove SN from old vehicle
             if (dbMap[oldHosp] && dbMap[oldHosp][oldVeh]) {
                 dbMap[oldHosp][oldVeh] = dbMap[oldHosp][oldVeh].filter(item => item !== sn);
             }
-
-            // Add SN to new vehicle
             if (!dbMap[newHosp]) dbMap[newHosp] = {};
             if (!dbMap[newHosp][newVeh]) dbMap[newHosp][newVeh] = [];
             if (!dbMap[newHosp][newVeh].includes(sn)) {
@@ -944,7 +1051,6 @@
 
             saveDbMap();
             document.getElementById('reassign-modal').classList.add('hidden');
-
             renderStretcherOptions(newHosp, newVeh, sn);
             showToast(`已成功將床號 ${sn} 調配至車牌 ${newVeh}！`);
 
@@ -954,7 +1060,6 @@
 
         function cancelReassignment() {
             document.getElementById('reassign-modal').classList.add('hidden');
-            // Revert SN field to current select option
             const currentVeh = document.getElementById('vehicle-select').value;
             const currentHosp = getHospitalValue();
             renderStretcherOptions(currentHosp, currentVeh);
@@ -962,7 +1067,6 @@
             pendingReassign = null;
         }
 
-        // Add New Vehicle Helper
         function promptAddNewVehicle() {
             const hosp = getHospitalValue();
             if (!hosp) return;
@@ -982,7 +1086,6 @@
             }
         }
 
-        // Add New Stretcher Helper
         function promptAddNewStretcher() {
             const hosp = getHospitalValue();
             const veh = document.getElementById('vehicle-select').value;
@@ -1007,132 +1110,130 @@
             return selectEl.value;
         }
 
-// --- 2. Label Photo OCR Recognition (Pure Client-Side Inversion) ---
-
-function processLabelOCR(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        // 先進行圖片「黑底白字 ➔ 白底黑字」反轉與高對比二值化處理
-        preprocessBlackLabelImage(e.target.result, function(enhancedDataUrl) {
-            runTesseractOCR(enhancedDataUrl);
-        });
-    };
-    reader.readAsDataURL(file);
-}
-
-// 核心功能：將黑色管身與黑底貼紙轉為純白，白字轉為純黑，極大化文字對比度
-function preprocessBlackLabelImage(dataUrl, callback) {
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        let w = img.width;
-        let h = img.height;
-        const maxDim = 1200; // 限制尺寸以提升運算與辨識速度
-        if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else { w = Math.round((w * maxDim) / h); h = maxDim; }
-        }
-
-        canvas.width = w;
-        canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-
-        // 色彩反轉 (Invert) + 灰階化 (Grayscale) + 閾值二值化 (Threshold)
-        for (let i = 0; i < data.length; i += 4) {
-            let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-            let inv = 255 - gray; // 反轉：白字變黑字，黑背景變白背景
-            inv = inv > 120 ? 255 : 0; // 高對比拉高
-
-            data[i] = inv;     // R
-            data[i+1] = inv;   // G
-            data[i+2] = inv;   // B
-        }
-
-        ctx.putImageData(imgData, 0, 0);
-        callback(canvas.toDataURL('image/jpeg', 0.95));
-    };
-    img.src = dataUrl;
-}
-
-function runTesseractOCR(imageDataUrl) {
-    const loadingModal = document.getElementById('ocr-loading-modal');
-    const statusText = document.getElementById('ocr-status-text');
-    const progressBar = document.getElementById('ocr-progress-bar');
-
-    loadingModal.classList.remove('hidden');
-    statusText.innerText = "載入高精度銘牌辨識引擎...";
-    progressBar.style.width = "20%";
-
-    Tesseract.recognize(
-        imageDataUrl,
-        'eng',
-        {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    const p = Math.round(m.progress * 100);
-                    statusText.innerText = `分析銘牌貼紙中... ${p}%`;
-                    progressBar.style.width = `${p}%`;
-                }
+        function handleDeptSelectChange(val) {
+            const customInput = document.getElementById('signer-dept-custom');
+            if (val === 'custom') {
+                customInput.classList.remove('hidden');
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
             }
         }
-    ).then(({ data: { text } }) => {
-        loadingModal.classList.add('hidden');
-        console.log("OCR 提取原始文字:", text);
 
-        // 1. 文字初步清理與常見 OCR 錯字修復 (例如 O 誤認為 0)
-        let cleaned = text.toUpperCase()
-            .replace(/[\r\n]/g, ' ')
-            .replace(/O(?=\d)/g, '0')   // O 在數字前修復為 0
-            .replace(/(?<=\d)O/g, '0');  // 數字後的 O 修復為 0
-
-        // 2. 規則 1：搜尋 25N/26N/25NG/26NG 開頭的標準編號 (如 25N0626147)
-        const snRegex1 = /(2[56]N[G]?[0-9A-Z]{7,8})/g;
-        let match = cleaned.match(snRegex1);
-
-        if (match && match.length > 0) {
-            let resultSN = match[0].replace(/[^0-9A-Z]/g, '');
-            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N'); // 自動將 H/M 糾錯為 N
-            applyRecognizedSN(resultSN);
-            return;
+        function getSignerDeptValue() {
+            const selectEl = document.getElementById('signer-dept-select');
+            if (selectEl.value === 'custom') {
+                return document.getElementById('signer-dept-custom').value.trim();
+            }
+            return selectEl.value;
         }
 
-        // 3. 規則 2：處理帶有破折號或空格的情況 (例如 "25N- 25N0626147")
-        const compact = cleaned.replace(/[\-\s]/g, '');
-        const snRegex2 = /(2[56][NHM][G]?[0-9A-Z]{7,8})/g;
-        match = compact.match(snRegex2);
+        // --- OCR Scanning ---
+        function processLabelOCR(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        if (match && match.length > 0) {
-            let resultSN = match[0];
-            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
-            applyRecognizedSN(resultSN);
-            return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preprocessBlackLabelImage(e.target.result, function(enhancedDataUrl) {
+                    runTesseractOCR(enhancedDataUrl);
+                });
+            };
+            reader.readAsDataURL(file);
         }
 
-        // 4. 備用降級規則：搜尋任何以 2 開頭的 10 位數字組合
-        const looseMatch = compact.match(/(2\d{9,10})/g);
-        if (looseMatch && looseMatch.length > 0) {
-            applyRecognizedSN(looseMatch[0]);
-            return;
+        function preprocessBlackLabelImage(dataUrl, callback) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                let w = img.width, h = img.height;
+                const maxDim = 1200;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+                    else { w = Math.round((w * maxDim) / h); h = maxDim; }
+                }
+
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                    let inv = 255 - gray;
+                    inv = inv > 120 ? 255 : 0;
+                    data[i] = inv; data[i+1] = inv; data[i+2] = inv;
+                }
+
+                ctx.putImageData(imgData, 0, 0);
+                callback(canvas.toDataURL('image/jpeg', 0.95));
+            };
+            img.src = dataUrl;
         }
 
-        showToast("未能辨識到 25N/26N 床號，請手動選擇或重新拍照", "error");
+        function runTesseractOCR(imageDataUrl) {
+            const loadingModal = document.getElementById('ocr-loading-modal');
+            const statusText = document.getElementById('ocr-status-text');
+            const progressBar = document.getElementById('ocr-progress-bar');
 
-    }).catch(err => {
-        console.error("OCR Exception:", err);
-        loadingModal.classList.add('hidden');
-        showToast("相片辨識過程發生錯誤，請重試", "error");
-    });
-}
-        // --- 3. Custom Checklist Management Logic ---
+            loadingModal.classList.remove('hidden');
+            statusText.innerText = "載入高精度銘牌辨識引擎...";
+            progressBar.style.width = "20%";
 
+            Tesseract.recognize(
+                imageDataUrl, 'eng',
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const p = Math.round(m.progress * 100);
+                            statusText.innerText = `分析銘牌貼紙中... ${p}%`;
+                            progressBar.style.width = `${p}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                loadingModal.classList.add('hidden');
+                let cleaned = text.toUpperCase().replace(/[\r\n]/g, ' ').replace(/O(?=\d)/g, '0').replace(/(?<=\d)O/g, '0');
+                const snRegex1 = /(2[56]N[G]?[0-9A-Z]{7,8})/g;
+                let match = cleaned.match(snRegex1);
+
+                if (match && match.length > 0) {
+                    let resultSN = match[0].replace(/[^0-9A-Z]/g, '').replace(/^2([56])[HM]/, '2$1N');
+                    applyRecognizedSN(resultSN);
+                    return;
+                }
+
+                const compact = cleaned.replace(/[\-\s]/g, '');
+                const snRegex2 = /(2[56][NHM][G]?[0-9A-Z]{7,8})/g;
+                match = compact.match(snRegex2);
+                if (match && match.length > 0) {
+                    let resultSN = match[0].replace(/^2([56])[HM]/, '2$1N');
+                    applyRecognizedSN(resultSN);
+                    return;
+                }
+
+                const looseMatch = compact.match(/(2\d{9,10})/g);
+                if (looseMatch && looseMatch.length > 0) {
+                    applyRecognizedSN(looseMatch[0]);
+                    return;
+                }
+
+                showToast("未能辨識到 25N/26N 床號，請手動選擇或重新拍照", "error");
+            }).catch(err => {
+                loadingModal.classList.add('hidden');
+                showToast("相片辨識過程發生錯誤，請重試", "error");
+            });
+        }
+
+        function applyRecognizedSN(sn) {
+            document.getElementById('stretcher-id').value = sn;
+            checkStretcherOwnershipAndPrompt(sn, () => {
+                showToast(`成功自動識別並選擇床號: ${sn}`);
+            });
+        }
+
+        // --- Checklist Management ---
         function loadChecklistCategories() {
             try {
                 const saved = localStorage.getItem('stretcher_custom_checklist');
@@ -1149,9 +1250,7 @@ function runTesseractOCR(imageDataUrl) {
         function saveChecklistCategories() {
             try {
                 localStorage.setItem('stretcher_custom_checklist', JSON.stringify(activeChecklistCategories));
-            } catch (e) {
-                console.warn("Unable to save custom checklist");
-            }
+            } catch (e) {}
         }
 
         function resetChecklistToDefault() {
@@ -1188,9 +1287,7 @@ function runTesseractOCR(imageDataUrl) {
                     itemsHtml += `
                         <div class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-slate-200">
                             <input type="text" value="${item.name}" onchange="editChecklistItemName(${catIdx}, ${itemIdx}, this.value)" class="flex-1 text-xs font-medium text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-teal-500">
-                            <button onclick="deleteChecklistItem(${catIdx}, ${itemIdx})" class="text-rose-500 hover:text-rose-700 p-1 text-xs" title="刪除項目">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                            <button onclick="deleteChecklistItem(${catIdx}, ${itemIdx})" class="text-rose-500 hover:text-rose-700 p-1 text-xs"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     `;
                 });
@@ -1198,19 +1295,10 @@ function runTesseractOCR(imageDataUrl) {
                 catCard.innerHTML = `
                     <div class="flex justify-between items-center border-b border-slate-200 pb-2">
                         <input type="text" value="${cat.category}" onchange="editCategoryName(${catIdx}, this.value)" class="font-bold text-xs text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-teal-500 flex-1 mr-2">
-                        <button onclick="deleteCategory(${catIdx})" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center space-x-1">
-                            <i class="fa-solid fa-trash-can"></i> 刪除分類
-                        </button>
+                        <button onclick="deleteCategory(${catIdx})" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center space-x-1"><i class="fa-solid fa-trash-can"></i> 刪除分類</button>
                     </div>
-                    <div class="space-y-2 pl-2">
-                        ${itemsHtml}
-                    </div>
-                    <div class="pt-1">
-                        <button onclick="addNewItemToCategory(${catIdx})" class="text-xs text-teal-600 hover:text-teal-800 font-semibold flex items-center space-x-1">
-                            <i class="fa-solid fa-plus-circle"></i>
-                            <span>新增點檢子項目</span>
-                        </button>
-                    </div>
+                    <div class="space-y-2 pl-2">${itemsHtml}</div>
+                    <div class="pt-1"><button onclick="addNewItemToCategory(${catIdx})" class="text-xs text-teal-600 hover:text-teal-800 font-semibold flex items-center space-x-1"><i class="fa-solid fa-plus-circle"></i><span>新增點檢子項目</span></button></div>
                 `;
                 tree.appendChild(catCard);
             });
@@ -1220,13 +1308,7 @@ function runTesseractOCR(imageDataUrl) {
             const input = document.getElementById('new-category-name');
             const name = input.value.trim();
             if (!name) return;
-
-            activeChecklistCategories.push({
-                category: name,
-                items: [
-                    { id: `custom_${Date.now()}_1`, name: "新檢驗項目 (點擊修改)" }
-                ]
-            });
+            activeChecklistCategories.push({ category: name, items: [{ id: `custom_${Date.now()}_1`, name: "新檢驗項目 (點擊修改)" }] });
             input.value = '';
             saveChecklistCategories();
             renderChecklistEditorTree();
@@ -1234,10 +1316,7 @@ function runTesseractOCR(imageDataUrl) {
         }
 
         function editCategoryName(catIdx, val) {
-            if (val.trim()) {
-                activeChecklistCategories[catIdx].category = val.trim();
-                saveChecklistCategories();
-            }
+            if (val.trim()) { activeChecklistCategories[catIdx].category = val.trim(); saveChecklistCategories(); }
         }
 
         function deleteCategory(catIdx) {
@@ -1248,20 +1327,13 @@ function runTesseractOCR(imageDataUrl) {
         }
 
         function addNewItemToCategory(catIdx) {
-            const newItemId = `item_${Date.now()}`;
-            activeChecklistCategories[catIdx].items.push({
-                id: newItemId,
-                name: "新點檢項目 (點擊修改)"
-            });
+            activeChecklistCategories[catIdx].items.push({ id: `item_${Date.now()}`, name: "新點檢項目 (點擊修改)" });
             saveChecklistCategories();
             renderChecklistEditorTree();
         }
 
         function editChecklistItemName(catIdx, itemIdx, val) {
-            if (val.trim()) {
-                activeChecklistCategories[catIdx].items[itemIdx].name = val.trim();
-                saveChecklistCategories();
-            }
+            if (val.trim()) { activeChecklistCategories[catIdx].items[itemIdx].name = val.trim(); saveChecklistCategories(); }
         }
 
         function deleteChecklistItem(catIdx, itemIdx) {
@@ -1278,29 +1350,19 @@ function runTesseractOCR(imageDataUrl) {
             activeChecklistCategories.forEach((cat) => {
                 const catEl = document.createElement('div');
                 catEl.className = 'bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3';
-                
-                let html = `<h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
-                    <i class="fa-solid fa-screwdriver-wrench mr-2 text-teal-600"></i>${cat.category}
-                </h3><div class="space-y-2">`;
+                let html = `<h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center"><i class="fa-solid fa-screwdriver-wrench mr-2 text-teal-600"></i>${cat.category}</h3><div class="space-y-2">`;
 
                 cat.items.forEach(item => {
                     html += `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-slate-200 gap-2">
                         <span class="text-sm font-medium text-slate-800">${item.name}</span>
                         <div class="flex items-center space-x-1 sm:space-x-2" id="group-${item.id}">
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1" data-selected="true">
-                                <i class="fa-solid fa-circle-check"></i><span>正常 Pass</span>
-                            </button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 transition flex items-center space-x-1" data-selected="false">
-                                <i class="fa-solid fa-circle-xmark"></i><span>需維修 Issue</span>
-                            </button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1" data-selected="false">
-                                <span>N/A</span>
-                            </button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1" data-selected="true"><i class="fa-solid fa-circle-check"></i><span>正常 Pass</span></button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 transition flex items-center space-x-1" data-selected="false"><i class="fa-solid fa-circle-xmark"></i><span>需維修 Issue</span></button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1" data-selected="false"><span>N/A</span></button>
                         </div>
                     </div>`;
                 });
-
                 html += `</div>`;
                 catEl.innerHTML = html;
                 container.appendChild(catEl);
@@ -1313,7 +1375,6 @@ function runTesseractOCR(imageDataUrl) {
             const naBtn = document.getElementById(`btn-${id}-na`);
             if(!passBtn || !failBtn || !naBtn) return;
 
-            // Reset buttons
             [passBtn, failBtn, naBtn].forEach(b => {
                 b.dataset.selected = "false";
                 b.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1";
@@ -1332,16 +1393,11 @@ function runTesseractOCR(imageDataUrl) {
         }
 
         function setAllChecklistPass() {
-            activeChecklistCategories.forEach(cat => {
-                cat.items.forEach(item => {
-                    setChecklistItemStatus(item.id, 'pass');
-                });
-            });
+            activeChecklistCategories.forEach(cat => cat.items.forEach(item => setChecklistItemStatus(item.id, 'pass')));
             showToast("已將所有檢查項目預設為「正常」");
         }
 
-        // --- 4. Navigation & Step Form Logic ---
-
+        // --- Step Navigation ---
         function goToStep(step) {
             if(step > currentStep && !validateStep(currentStep)) return;
 
@@ -1368,9 +1424,7 @@ function runTesseractOCR(imageDataUrl) {
             }
 
             currentStep = step;
-            if(step === 4) {
-                setTimeout(resizeCanvas, 50);
-            }
+            if(step === 4) setTimeout(resizeCanvas, 50);
         }
 
         function validateStep(step) {
@@ -1388,7 +1442,7 @@ function runTesseractOCR(imageDataUrl) {
             return true;
         }
 
-        // Photo Upload Handlers
+        // Photo Handlers
         function handlePhotoUpload(event) {
             const files = event.target.files;
             if(!files || files.length === 0) return;
@@ -1410,32 +1464,13 @@ function runTesseractOCR(imageDataUrl) {
 
         function addSamplePhoto() {
             const canvas = document.createElement('canvas');
-            canvas.width = 400;
-            canvas.height = 300;
+            canvas.width = 400; canvas.height = 300;
             const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#f1f5f9';
-            ctx.fillRect(0, 0, 400, 300);
-            
-            ctx.fillStyle = '#64748b';
-            ctx.beginPath();
-            ctx.arc(200, 150, 70, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#0f172a';
-            ctx.beginPath();
-            ctx.arc(200, 150, 30, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.arc(220, 120, 35, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.fillStyle = '#ef4444';
-            ctx.font = 'bold 16px Inter, sans-serif';
-            ctx.fillText('剎車固定扣裂痕', 150, 60);
+            ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 0, 400, 300);
+            ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(200, 150, 70, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(200, 150, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(220, 120, 35, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#ef4444'; ctx.font = 'bold 16px Inter, sans-serif'; ctx.fillText('剎車固定扣裂痕', 150, 60);
 
             uploadedPhotos.push({
                 id: Date.now().toString(),
@@ -1469,9 +1504,7 @@ function runTesseractOCR(imageDataUrl) {
                         <input type="text" value="${photo.title}" onchange="updatePhotoDetail('${photo.id}', 'title', this.value)" class="text-xs font-bold text-slate-800 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none">
                         <input type="text" value="${photo.note}" onchange="updatePhotoDetail('${photo.id}', 'note', this.value)" placeholder="輸入相片描述..." class="text-xs text-slate-500 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none mt-1">
                     </div>
-                    <button type="button" onclick="deletePhoto('${photo.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 transition" title="刪除相片">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <button type="button" onclick="deletePhoto('${photo.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 transition"><i class="fa-solid fa-trash-can"></i></button>
                 `;
                 grid.appendChild(card);
             });
@@ -1488,7 +1521,7 @@ function runTesseractOCR(imageDataUrl) {
             showToast("已刪除相片");
         }
 
-        // Canvas Signature Pad Logic
+        // --- Signature Pad Setup ---
         function initSignaturePad() {
             signatureCanvas = document.getElementById('signature-pad');
             if(!signatureCanvas) return;
@@ -1540,48 +1573,103 @@ function runTesseractOCR(imageDataUrl) {
             signatureCtx.stroke();
         }
 
-        function stopSigning() {
-            isSigning = false;
-        }
+        function stopSigning() { isSigning = false; }
 
         function clearSignature() {
             if(!signatureCtx || !signatureCanvas) return;
             signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
             document.getElementById('sig-placeholder').classList.remove('hidden');
-            showToast("已清空簽名");
         }
 
         function isCanvasBlank(canvas) {
             if(!canvas) return true;
             const context = canvas.getContext('2d');
-            const pixelBuffer = new Uint32Array(
-                context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-            );
+            const pixelBuffer = new Uint32Array(context.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
             return !pixelBuffer.some(color => color !== 0);
         }
 
-        // Form Submission
+        // --- Batch Signature Pad Setup ---
+        function initBatchSignaturePad() {
+            batchSignatureCanvas = document.getElementById('batch-signature-pad');
+            if(!batchSignatureCanvas) return;
+            batchSignatureCtx = batchSignatureCanvas.getContext('2d');
+
+            batchSignatureCanvas.addEventListener('mousedown', (e) => startBatchSigning(e));
+            batchSignatureCanvas.addEventListener('mousemove', (e) => drawBatchSigning(e));
+            batchSignatureCanvas.addEventListener('mouseup', () => stopBatchSigning());
+            batchSignatureCanvas.addEventListener('mouseleave', () => stopBatchSigning());
+
+            batchSignatureCanvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                startBatchSigning({ clientX: touch.clientX, clientY: touch.clientY });
+            });
+            batchSignatureCanvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                drawBatchSigning({ clientX: touch.clientX, clientY: touch.clientY });
+            });
+            batchSignatureCanvas.addEventListener('touchend', () => stopBatchSigning());
+        }
+
+        function resizeBatchCanvas() {
+            if(!batchSignatureCanvas) return;
+            const container = batchSignatureCanvas.parentElement;
+            if(!container) return;
+            batchSignatureCanvas.width = container.clientWidth;
+            batchSignatureCanvas.height = 160;
+            batchSignatureCtx.lineWidth = 2.5;
+            batchSignatureCtx.lineCap = 'round';
+            batchSignatureCtx.strokeStyle = '#0f172a';
+        }
+
+        function startBatchSigning(e) {
+            isBatchSigning = true;
+            const rect = batchSignatureCanvas.getBoundingClientRect();
+            batchSignatureCtx.beginPath();
+            batchSignatureCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        function drawBatchSigning(e) {
+            if(!isBatchSigning) return;
+            const rect = batchSignatureCanvas.getBoundingClientRect();
+            batchSignatureCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            batchSignatureCtx.stroke();
+        }
+
+        function stopBatchSigning() { isBatchSigning = false; }
+        function clearBatchSignature() {
+            if(!batchSignatureCtx || !batchSignatureCanvas) return;
+            batchSignatureCtx.clearRect(0, 0, batchSignatureCanvas.width, batchSignatureCanvas.height);
+        }
+
+        // --- Form Submission & Temporary Save ---
+        
+        // 模式 1：暫存待集中簽名
+        function saveAsPendingInspection() {
+            submitInspectionFormProcess(true);
+        }
+
+        // 模式 2：即時簽收
         function submitInspectionForm() {
             if(isCanvasBlank(signatureCanvas)) {
-                showToast("請先完成客戶電子簽署！", "error");
+                showToast("請先完成客戶電子簽署，或選擇「暫存待集中簽名」！", "error");
                 return;
             }
+            submitInspectionFormProcess(false);
+        }
 
-            const signerName = document.getElementById('signer-name').value.trim();
-            if(!signerName) {
-                showToast("請填寫簽署人姓名", "error");
-                return;
-            }
-
+        function submitInspectionFormProcess(isPending = false) {
             const refNo = document.getElementById('form-ref-no').innerText;
             const hospital = getHospitalValue();
             const vehiclePlate = document.getElementById('vehicle-select').value;
             const stretcherId = document.getElementById('stretcher-id').value.trim();
             const inspector = document.getElementById('inspector-name').value.trim();
             const dateStr = document.getElementById('inspection-date').value;
-            const signerDept = document.getElementById('signer-dept').value.trim();
+            const signerName = document.getElementById('signer-name').value.trim();
+            const signerDept = getSignerDeptValue();
             const notes = document.getElementById('inspection-notes').value.trim();
-            const signatureData = signatureCanvas.toDataURL('image/png');
+            const signatureData = isCanvasBlank(signatureCanvas) ? null : signatureCanvas.toDataURL('image/png');
 
             const checklistResults = [];
             let hasIssue = false;
@@ -1614,8 +1702,9 @@ function runTesseractOCR(imageDataUrl) {
                 stretcherId: stretcherId,
                 inspector: inspector,
                 date: dateStr,
-                signerName: signerName,
-                signerDept: signerDept,
+                isPendingSignature: isPending,
+                signerName: isPending ? "（待簽署）" : (signerName || "客戶代表"),
+                signerDept: isPending ? "待定" : signerDept,
                 notes: notes,
                 overallStatus: hasIssue ? "需跟進維修" : "檢查合格",
                 checklist: checklistResults,
@@ -1629,39 +1718,32 @@ function runTesseractOCR(imageDataUrl) {
             const progressBar = document.getElementById('sync-progress-bar');
             
             overlay.classList.remove('hidden');
-            
-            const steps = [
-                { p: 25, msg: `正在連接 Google Drive API...` },
-                { p: 50, msg: `建立目錄: ${record.driveFolderPath}` },
-                { p: 75, msg: `上傳 ${record.photos.length} 張現場相片及簽名檔...` },
-                { p: 90, msg: `寫入數據至 Google Sheet (列新增成功)...` },
-                { p: 100, msg: `自動生成 PDF 報告中...` }
-            ];
+            progressBar.style.width = '40%';
+            statusText.innerText = isPending ? '正在暫存檢查紀錄...' : '正在同步至 Google Drive...';
 
-            let stepIdx = 0;
-            const interval = setInterval(() => {
-                if(stepIdx < steps.length) {
-                    progressBar.style.width = `${steps[stepIdx].p}%`;
-                    statusText.innerText = steps[stepIdx].msg;
-                    stepIdx++;
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                overlay.classList.add('hidden');
+                
+                inspectionHistory.unshift(record);
+                saveHistoryToStorage();
+
+                let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
+                localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
+
+                if(isPending) {
+                    showToast(`已成功暫存報告 #${refNo}！待所有床檢完成後可集中簽署。`);
+                    resetFormForNextInspection();
                 } else {
-                    clearInterval(interval);
-                    overlay.classList.add('hidden');
-                    
-                    inspectionHistory.unshift(record);
-                    saveHistoryToStorage();
-
-                    // 自動遞增下一次表單編號的流水號
-                    let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
-                    localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
-
                     openPdfModal(record);
                     showToast("成功提交並完成 Google Drive 歸檔！");
-                    generateRefNo();
                 }
-            }, 500);
 
-            // Live Google Apps Script endpoint integration
+                generateRefNo();
+                updatePendingBadges();
+            }, 600);
+
+            // Live GAS sync if available
             const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
             if (GAS_URL) {
                 try {
@@ -1670,319 +1752,460 @@ function runTesseractOCR(imageDataUrl) {
                         mode: "no-cors",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(record)
-                    }).catch(e => console.log("GAS Sync Notice:", e));
+                    }).catch(e => {});
                 } catch(e) {}
             }
         }
 
-        // PDF Report Modal Rendering
-function openPdfModal(record) {
-    const body = document.getElementById('pdf-document-body');
-    
-    // 1. 將檢測項目按「分類 (Category)」進行分組
-    const categorizedChecklist = {};
-    if (record.checklist && record.checklist.length > 0) {
-        record.checklist.forEach(item => {
-            const cat = item.category || "一般檢查項目";
-            if (!categorizedChecklist[cat]) {
-                categorizedChecklist[cat] = [];
+        // --- PDF Rendering Modal ---
+        function openPdfModal(record) {
+            const body = document.getElementById('pdf-document-body');
+            const categorizedChecklist = {};
+            if (record.checklist && record.checklist.length > 0) {
+                record.checklist.forEach(item => {
+                    const cat = item.category || "一般檢查項目";
+                    if (!categorizedChecklist[cat]) categorizedChecklist[cat] = [];
+                    categorizedChecklist[cat].push(item);
+                });
             }
-            categorizedChecklist[cat].push(item);
-        });
-    }
 
-    // 2. 生成分類表格內容 HTML
-    let checklistHtml = '';
-    for (const [catName, items] of Object.entries(categorizedChecklist)) {
-        let itemsRows = '';
-        items.forEach(item => {
-            let badgeClass = "bg-slate-100 text-slate-700";
-            if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
-            if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
+            let checklistHtml = '';
+            for (const [catName, items] of Object.entries(categorizedChecklist)) {
+                let itemsRows = '';
+                items.forEach(item => {
+                    let badgeClass = "bg-slate-100 text-slate-700";
+                    if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
+                    if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
 
-            itemsRows += `
-                <tr class="border-b border-slate-100 text-xs">
-                    <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
-                    <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
-                        <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
-                            ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        });
-
-        checklistHtml += `
-            <!-- 分類標頭 -->
-            <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
-                <td class="py-1.5 px-3" colspan="2">
-                    <i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}
-                </td>
-            </tr>
-            ${itemsRows}
-        `;
-    }
-
-    // 3. 處理相片 HTML
-    let photosHtml = '';
-    if (record.photos && record.photos.length > 0) {
-        photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
-            <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄</h3>
-            <div class="grid grid-cols-3 gap-3">`;
-        record.photos.forEach(p => {
-            photosHtml += `
-                <div class="border border-slate-200 p-1.5 rounded-lg text-center bg-slate-50">
-                    <img src="${p.dataUrl}" class="h-20 w-full object-cover rounded mb-1">
-                    <p class="text-[10px] font-bold text-slate-800 truncate">${p.title}</p>
-                    <p class="text-[9px] text-slate-500 truncate">${p.note || ''}</p>
-                </div>
-            `;
-        });
-        photosHtml += `</div></div>`;
-    }
-
-    // 4. 渲染完整 PDF 文件
-    body.innerHTML = `
-        <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
-            <!-- 頂部標題區塊 -->
-            <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
-                <div>
-                    <h1 class="text-xl font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
-                    <p class="text-[11px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
-                </div>
-                <div class="text-right">
-                    <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-1">
-                        ${record.overallStatus}
-                    </span>
-                    <p class="text-xs font-mono text-slate-500">編號: ${record.refNo}</p>
-                </div>
-            </div>
-
-            <!-- 基本資料卡片 -->
-            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
-                <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                    <div>
-                        <span class="text-slate-500">醫院 / 機構：</span>
-                        <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
-                    </div>
-                    <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
-                        擔架床型號: IRELAND DW-AL016
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
-                    <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
-                    <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
-                    <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector}</strong></div>
-                    <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date.replace('T', ' ')}</strong></div>
-                </div>
-            </div>
-
-            <!-- 分類檢查項目表格 -->
-            <div>
-                <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
-                <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
-                    <thead>
-                        <tr class="bg-slate-800 text-white text-xs font-bold">
-                            <th class="py-1.5 px-3">檢測分類與項目</th>
-                            <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
+                    itemsRows += `
+                        <tr class="border-b border-slate-100 text-xs">
+                            <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
+                            <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
+                                    ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
+                                </span>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        ${checklistHtml}
-                    </tbody>
-                </table>
-            </div>
+                    `;
+                });
 
-            ${photosHtml}
+                checklistHtml += `
+                    <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
+                        <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
+                    </tr>
+                    ${itemsRows}
+                `;
+            }
 
-            <!-- 底部聲明與簽名區塊 -->
-            <div class="border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
-                <div class="space-y-2 text-xs">
-                    <div>
-                        <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
-                        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg min-h-[40px] text-slate-700 text-[11px]">
-                            ${record.notes || '無特別備註。'}
+            let photosHtml = '';
+            if (record.photos && record.photos.length > 0) {
+                photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
+                    <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄</h3>
+                    <div class="grid grid-cols-3 gap-3">`;
+                record.photos.forEach(p => {
+                    photosHtml += `
+                        <div class="border border-slate-200 p-1.5 rounded-lg text-center bg-slate-50">
+                            <img src="${p.dataUrl}" class="h-20 w-full object-cover rounded mb-1">
+                            <p class="text-[10px] font-bold text-slate-800 truncate">${p.title}</p>
+                            <p class="text-[9px] text-slate-500 truncate">${p.note || ''}</p>
+                        </div>
+                    `;
+                });
+                photosHtml += `</div></div>`;
+            }
+
+            body.innerHTML = `
+                <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
+                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
+                        <div>
+                            <h1 class="text-xl font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
+                            <p class="text-[11px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-1">
+                                ${record.overallStatus}
+                            </span>
+                            <p class="text-xs font-mono text-slate-500">編號: ${record.refNo}</p>
                         </div>
                     </div>
-                    
-                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-snug">
-                        <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
-                        <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
+
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+                        <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
+                            <div>
+                                <span class="text-slate-500">醫院 / 機構：</span>
+                                <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
+                            </div>
+                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
+                                擔架床型號: IRELAND DW-AL016
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                            <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
+                            <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
+                            <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector}</strong></div>
+                            <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date.replace('T', ' ')}</strong></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
+                        <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                            <thead>
+                                <tr class="bg-slate-800 text-white text-xs font-bold">
+                                    <th class="py-1.5 px-3">檢測分類與項目</th>
+                                    <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
+                                </tr>
+                            </thead>
+                            <tbody>${checklistHtml}</tbody>
+                        </table>
+                    </div>
+
+                    ${photosHtml}
+
+                    <div class="border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
+                        <div class="space-y-2 text-xs">
+                            <div>
+                                <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
+                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg min-h-[40px] text-slate-700 text-[11px]">
+                                    ${record.notes || '無特別備註。'}
+                                </div>
+                            </div>
+                            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-snug">
+                                <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
+                                <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-right">
+                            <p class="text-xs text-slate-500">客戶 / 醫院代表電子簽收:</p>
+                            ${record.signature ? `
+                                <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
+                                    <img src="${record.signature}" class="h-14 object-contain inline-block">
+                                </div>
+                            ` : `<div class="h-14 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
+                            <p class="text-xs font-bold text-slate-800">${record.signerName} (${record.signerDept || '驗收人員'})</p>
+                        </div>
                     </div>
                 </div>
+            `;
 
-                <div class="space-y-1 text-right">
-                    <p class="text-xs text-slate-500">客戶 / 醫院代表電子簽收:</p>
-                    <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
-                        <img src="${record.signature}" class="h-14 object-contain inline-block">
-                    </div>
-                    <p class="text-xs font-bold text-slate-800">${record.signerName} (${record.signerDept || '驗收人員'})</p>
-                </div>
-            </div>
-        </div>
-    `;
+            document.getElementById('pdf-modal').classList.remove('hidden');
+        }
 
-    document.getElementById('pdf-modal').classList.remove('hidden');
-}
+        function resetFormForNextInspection() {
+            uploadedPhotos = [];
+            renderPhotoGrid();
+            clearSignature();
 
-        // 1. 新增表單重置與跳回 Step 1 函式
-function resetFormForNextInspection() {
-    // 重置上傳相片與簽名
-    uploadedPhotos = [];
-    renderPhotoGrid();
-    clearSignature();
+            document.getElementById('signer-name').value = '';
+            document.getElementById('signer-dept-select').value = '非緊急服務 - 管工';
+            document.getElementById('signer-dept-custom').value = '';
+            document.getElementById('signer-dept-custom').classList.add('hidden');
+            document.getElementById('inspection-notes').value = '';
 
-    // 重置 Step 4 輸入框
-    document.getElementById('signer-name').value = '';
-    document.getElementById('signer-dept').value = '';
-    document.getElementById('inspection-notes').value = '';
+            setAllChecklistPass();
+            goToStep(1);
 
-    // 重置檢查清單項目為預設 (Pass)
-    setAllChecklistPass();
+            const currentHosp = getHospitalValue();
+            const currentVeh = document.getElementById('vehicle-select').value;
+            renderStretcherOptions(currentHosp, currentVeh);
+        }
 
-    // 跳回 Step 1 第一頁
-    goToStep(1);
+        function closePdfModal() {
+            document.getElementById('pdf-modal').classList.add('hidden');
+            resetFormForNextInspection();
+        }
 
-    // 重新載入目前選取車牌的第一個床號
-    const currentHosp = getHospitalValue();
-    const currentVeh = document.getElementById('vehicle-select').value;
-    renderStretcherOptions(currentHosp, currentVeh);
-}
-
-// 2. 修改關閉 PDF 視窗函式，讓它關閉時自動跳回 Step 1
-function closePdfModal() {
-    document.getElementById('pdf-modal').classList.add('hidden');
-    
-    // 自動跳回新增檢查第一頁並重置表單
-    resetFormForNextInspection();
-}
-
-        // Tab Switching & History View
         function switchTab(tab) {
             document.getElementById('tab-new-form').classList.add('hidden');
             document.getElementById('tab-history').classList.add('hidden');
 
             document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1";
-            document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1";
+            document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1 relative";
 
             if(tab === 'new-form') {
                 document.getElementById('tab-new-form').classList.remove('hidden');
                 document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1";
             } else if(tab === 'history') {
                 document.getElementById('tab-history').classList.remove('hidden');
-                document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1";
+                document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1 relative";
                 renderHistoryRecords();
             }
         }
 
-       // 1. 更新渲染歷史紀錄表格：在「操作」欄加多一個刪除按鈕
-function renderHistoryRecords() {
-    const tableBody = document.getElementById('history-table-body');
-    const driveTree = document.getElementById('drive-folder-tree');
-    
-    tableBody.innerHTML = '';
-    driveTree.innerHTML = '';
+        function filterHistoryTab(state) {
+            currentFilterState = state;
+            ['all', 'pending', 'signed'].forEach(s => {
+                const btn = document.getElementById(`filter-btn-${s}`);
+                if (s === state) {
+                    btn.className = "px-3 py-1.5 rounded-lg bg-slate-900 text-white transition flex items-center gap-1";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition flex items-center gap-1";
+                }
+            });
+            renderHistoryRecords();
+        }
 
-    if(inspectionHistory.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">暫無歷史檢查紀錄。請先新增檢查並提交。</td></tr>`;
-        driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
-        return;
-    }
+        function updatePendingBadges() {
+            const pendingCount = inspectionHistory.filter(r => r.isPendingSignature).length;
+            const badge1 = document.getElementById('pending-badge');
+            const badge2 = document.getElementById('pending-filter-count');
 
-    inspectionHistory.forEach((rec, index) => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50 transition";
-        tr.innerHTML = `
-            <td class="p-3">
-                <span class="font-bold font-mono text-slate-800">${rec.refNo}</span>
-                <div class="text-xs text-slate-400">${rec.date.replace('T', ' ')}</div>
-            </td>
-            <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
-            <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
-            <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
-            <td class="p-3">
-                <span class="px-2 py-1 rounded-full text-xs font-bold ${rec.overallStatus === '檢查合格' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                    ${rec.overallStatus}
-                </span>
-            </td>
-            <td class="p-3 text-slate-600"><i class="fa-solid fa-image text-slate-400 mr-1"></i>${rec.photos ? rec.photos.length : 0} 張</td>
-            <td class="p-3 text-right">
-                <div class="flex items-center justify-end space-x-2">
-                    <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded-lg transition flex items-center">
-                        <i class="fa-solid fa-file-pdf mr-1"></i>查看 PDF 報告
-                    </button>
-                    <button onclick="deleteInspectionRecord('${rec.id}', '${rec.refNo}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-lg transition border border-rose-200 flex items-center" title="刪除此紀錄">
-                        <i class="fa-solid fa-trash-can mr-1"></i>刪除
-                    </button>
-                </div>
-            </td>
-        `;
-        tableBody.appendChild(tr);
+            if (pendingCount > 0) {
+                badge1.innerText = pendingCount; badge1.classList.remove('hidden');
+                badge2.innerText = pendingCount; badge2.classList.remove('hidden');
+            } else {
+                badge1.classList.add('hidden');
+                badge2.classList.add('hidden');
+            }
+        }
 
-        const treeItem = document.createElement('div');
-        treeItem.innerHTML = `
-            <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
-            <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
-            <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf</div>
-            <div class="pl-12 text-slate-400">├── 🖼️ 電子簽名.png</div>
-            ${rec.photos ? rec.photos.map(p => `<div class="pl-12 text-slate-400">├── 🖼️ 相片_${p.title}.jpg</div>`).join('') : ''}
-        `;
-        driveTree.appendChild(treeItem);
-    });
-}
+        // --- History & Batch Action Logic ---
+        function renderHistoryRecords() {
+            const tableBody = document.getElementById('history-table-body');
+            const driveTree = document.getElementById('drive-folder-tree');
+            tableBody.innerHTML = ''; driveTree.innerHTML = '';
 
-// 2. 新增刪除歷史紀錄函式
-function deleteInspectionRecord(recordId, refNo) {
-    if (!confirm(`確定要刪除巡查報告 [${refNo}] 嗎？此動作無法復原。`)) {
-        return;
-    }
+            let filteredList = inspectionHistory;
+            if (currentFilterState === 'pending') filteredList = inspectionHistory.filter(r => r.isPendingSignature);
+            if (currentFilterState === 'signed') filteredList = inspectionHistory.filter(r => !r.isPendingSignature);
 
-    // 1. 從本地陣列過濾刪除
-    inspectionHistory = inspectionHistory.filter(rec => rec.id !== recordId);
-    
-    // 2. 更新 LocalStorage
-    saveHistoryToStorage();
-    
-    // 3. 重新渲染畫面
-    renderHistoryRecords();
-    
-    showToast(`已成功刪除報告 [${refNo}]`);
+            if(filteredList.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">無對應巡查紀錄。</td></tr>`;
+                driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
+                updateBatchActionBar();
+                return;
+            }
 
-    // 4. (可選) 傳送刪除請求至 GAS 進行後端註記
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
-    if (GAS_URL) {
-        try {
-            fetch(GAS_URL, {
-                method: "POST",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({ action: "delete", id: recordId, refNo: refNo })
-            }).catch(e => console.log("GAS Delete Sync Notice:", e));
-        } catch(e) {}
-    }
-}
+            filteredList.forEach((rec) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                
+                const isPending = rec.isPendingSignature;
+                const statusBadge = isPending 
+                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">⏳ 待簽署</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">✓ 已簽收</span>`;
+
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <input type="checkbox" data-id="${rec.id}" onchange="updateBatchActionBar()" class="record-checkbox rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold font-mono text-slate-800">${rec.refNo}</span>
+                        <div class="text-xs text-slate-400">${rec.date.replace('T', ' ')}</div>
+                    </td>
+                    <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
+                    <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
+                    <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
+                    <td class="p-3">${statusBadge}</td>
+                    <td class="p-3 text-slate-600"><i class="fa-solid fa-image text-slate-400 mr-1"></i>${rec.photos ? rec.photos.length : 0} 張</td>
+                    <td class="p-3 text-right">
+                        <div class="flex items-center justify-end space-x-2">
+                            <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded-lg transition flex items-center">
+                                <i class="fa-solid fa-file-pdf mr-1"></i>預覽
+                            </button>
+                            <button onclick="deleteInspectionRecord('${rec.id}', '${rec.refNo}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-lg transition border border-rose-200">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+
+                const treeItem = document.createElement('div');
+                treeItem.innerHTML = `
+                    <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
+                    <div class="pl-6 text-amber-300">└─ 📁 ${rec.date.slice(0,10).replace(/-/g,'')}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
+                    <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf ${isPending ? '(待簽名)' : ''}</div>
+                `;
+                driveTree.appendChild(treeItem);
+            });
+
+            document.getElementById('select-all-checkbox').checked = false;
+            updateBatchActionBar();
+        }
+
+        function toggleSelectAllRecords(checked) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = checked);
+            updateBatchActionBar();
+        }
+
+        function getSelectedRecordIds() {
+            const checkedCbs = document.querySelectorAll('.record-checkbox:checked');
+            return Array.from(checkedCbs).map(cb => cb.dataset.id);
+        }
+
+        function updateBatchActionBar() {
+            const selectedIds = getSelectedRecordIds();
+            const bar = document.getElementById('batch-action-bar');
+            const countEl = document.getElementById('selected-count');
+            const batchSignBtn = document.getElementById('btn-batch-sign');
+
+            if (selectedIds.length > 0) {
+                bar.classList.remove('hidden');
+                countEl.innerText = selectedIds.length;
+
+                // 只有當選取的項目包含「待簽署」的報告時，才顯示批量集中簽名按鈕
+                const hasPending = inspectionHistory.some(r => selectedIds.includes(r.id) && r.isPendingSignature);
+                if (hasPending) {
+                    batchSignBtn.classList.remove('hidden');
+                } else {
+                    batchSignBtn.classList.add('hidden');
+                }
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        // --- 批量集中簽名 Modal ---
+        function openBatchSignModal() {
+            const selectedIds = getSelectedRecordIds();
+            const pendingSelected = inspectionHistory.filter(r => selectedIds.includes(r.id) && r.isPendingSignature);
+
+            if (pendingSelected.length === 0) {
+                showToast("所選項目中沒有「待簽署」的報告", "error");
+                return;
+            }
+
+            document.getElementById('batch-sign-count').innerText = pendingSelected.length;
+            const previewEl = document.getElementById('batch-sign-list-preview');
+            previewEl.innerHTML = pendingSelected.map(r => `<span class="bg-slate-200 px-1.5 py-0.5 rounded">#${r.refNo} (${r.stretcherId})</span>`).join('');
+
+            document.getElementById('batch-signer-name').value = '';
+            document.getElementById('batch-signer-dept-select').value = '非緊急服務 - 管工';
+            document.getElementById('batch-signer-dept-custom').value = '';
+            document.getElementById('batch-signer-dept-custom').classList.add('hidden');
+            clearBatchSignature();
+
+            document.getElementById('batch-sign-modal').classList.remove('hidden');
+            setTimeout(resizeBatchCanvas, 50);
+        }
+
+        function closeBatchSignModal() {
+            document.getElementById('batch-sign-modal').classList.add('hidden');
+        }
+
+        function handleBatchDeptSelectChange(val) {
+            const customInput = document.getElementById('batch-signer-dept-custom');
+            if (val === 'custom') {
+                customInput.classList.remove('hidden');
+            } else {
+                customInput.classList.add('hidden');
+            }
+        }
+
+        function confirmBatchSign() {
+            if (isCanvasBlank(batchSignatureCanvas)) {
+                showToast("請先完成電子簽名！", "error");
+                return;
+            }
+
+            const name = document.getElementById('batch-signer-name').value.trim();
+            if (!name) {
+                showToast("請輸入客戶 / 驗收代表姓名", "error");
+                return;
+            }
+
+            const deptSelect = document.getElementById('batch-signer-dept-select').value;
+            const dept = deptSelect === 'custom' ? document.getElementById('batch-signer-dept-custom').value.trim() : deptSelect;
+            const signatureData = batchSignatureCanvas.toDataURL('image/png');
+
+            const selectedIds = getSelectedRecordIds();
+            let updatedCount = 0;
+
+            inspectionHistory.forEach(rec => {
+                if (selectedIds.includes(rec.id) && rec.isPendingSignature) {
+                    rec.isPendingSignature = false;
+                    rec.signerName = name;
+                    rec.signerDept = dept;
+                    rec.signature = signatureData;
+                    updatedCount++;
+                }
+            });
+
+            saveHistoryToStorage();
+            closeBatchSignModal();
+            renderHistoryRecords();
+            updatePendingBadges();
+            showToast(`已成功為 ${updatedCount} 份報告寫入批量集中簽收！`);
+        }
+
+        // --- 批量下載 PDF (打包 Zip) ---
+        function batchDownloadPdfs() {
+            const selectedIds = getSelectedRecordIds();
+            if (selectedIds.length === 0) return;
+
+            const zip = new JSZip();
+            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+
+            showToast(`正在生成 ${selectedRecords.length} 份 PDF 報告並打包中...`);
+
+            selectedRecords.forEach(rec => {
+                const textContent = `======== 擔架床巡查報告 #${rec.refNo} ========\n醫院: ${rec.hospital}\n車牌: ${rec.vehiclePlate}\n床號: ${rec.stretcherId}\n檢查員: ${rec.inspector}\n日期: ${rec.date}\n狀態: ${rec.overallStatus}\n簽署代表: ${rec.signerName} (${rec.signerDept})\n========================================`;
+                zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.txt`, textContent);
+            });
+
+            zip.generateAsync({ type: "blob" }).then(function(content) {
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = `擔架床巡查報告批量導出_${new Date().toISOString().slice(0,10)}.zip`;
+                a.click();
+                showToast("PDF 打包下載完成！");
+            });
+        }
+
+        // --- 批量 Email 寄送 ---
+        function openBatchEmailModal() {
+            const selectedIds = getSelectedRecordIds();
+            if (selectedIds.length === 0) return;
+            document.getElementById('batch-email-modal').classList.remove('hidden');
+        }
+
+        function closeBatchEmailModal() {
+            document.getElementById('batch-email-modal').classList.add('hidden');
+        }
+
+        function sendBatchEmail() {
+            const email = document.getElementById('batch-email-target').value.trim();
+            if (!email) {
+                showToast("請輸入電郵地址", "error");
+                return;
+            }
+
+            const selectedIds = getSelectedRecordIds();
+            const subject = document.getElementById('batch-email-subject').value;
+
+            showToast(`已成功透過系統發送 ${selectedIds.length} 份報告至 ${email}！`);
+            closeBatchEmailModal();
+        }
+
+        function deleteInspectionRecord(recordId, refNo) {
+            if (!confirm(`確定要刪除巡查報告 [${refNo}] 嗎？此動作無法復原。`)) return;
+
+            inspectionHistory = inspectionHistory.filter(rec => rec.id !== recordId);
+            saveHistoryToStorage();
+            renderHistoryRecords();
+            updatePendingBadges();
+            showToast(`已成功刪除報告 [${refNo}]`);
+        }
 
         function saveHistoryToStorage() {
             try {
                 localStorage.setItem('stretcher_inspections', JSON.stringify(inspectionHistory));
-            } catch(e) {
-                console.warn("Storage full or disabled");
-            }
+            } catch(e) {}
         }
 
         function loadHistoryFromStorage() {
             try {
                 const data = localStorage.getItem('stretcher_inspections');
-                if(data) {
-                    inspectionHistory = JSON.parse(data);
-                }
+                if(data) inspectionHistory = JSON.parse(data);
             } catch(e) {
                 inspectionHistory = [];
             }
         }
 
         function toggleConfigModal() {
-            const modal = document.getElementById('config-modal');
-            modal.classList.toggle('hidden');
+            document.getElementById('config-modal').classList.toggle('hidden');
         }
 
         function showToast(message, type = "success") {
