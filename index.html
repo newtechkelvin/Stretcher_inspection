@@ -1071,69 +1071,54 @@ function runTesseractOCR(imageDataUrl) {
     const progressBar = document.getElementById('ocr-progress-bar');
 
     loadingModal.classList.remove('hidden');
-    statusText.innerText = "載入 AI 銘牌辨識引擎...";
-    progressBar.style.width = "15%";
+    statusText.innerText = "正在使用 Google AI 辨識黑底銘牌...";
+    progressBar.style.width = "40%";
 
-    Tesseract.recognize(
-        imageDataUrl,
-        'eng',
-        {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    const p = Math.round(m.progress * 100);
-                    statusText.innerText = `分析銘牌貼紙中... ${p}%`;
-                    progressBar.style.width = `${p}%`;
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
+
+    // 發送圖片給 Google Drive API 進行雲端 OCR
+    fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+            action: "ocr_scan",
+            imageData: imageDataUrl
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        loadingModal.classList.add('hidden');
+        
+        if (data.status === "success" && data.rawText) {
+            console.log("Google Cloud OCR 提取文字:\n", data.rawText);
+            
+            // 清除無關字元
+            const cleaned = data.rawText.toUpperCase().replace(/[\r\n]/g, ' ');
+
+            // 精準比對 25N 或 26N 開頭的 10-11 位編號 (如 25N0626147)
+            const regex = /(2[56]N[0-9A-Z]{7,8})/gi;
+            const match = cleaned.match(regex);
+
+            if (match && match.length > 0) {
+                applyRecognizedSN(match[0].toUpperCase());
+            } else {
+                // 備用匹配策略
+                const compact = cleaned.replace(/[\-\s]/g, '');
+                const match2 = compact.match(/2[56]N[0-9A-Z]{7,8}/gi);
+                if (match2 && match2.length > 0) {
+                    applyRecognizedSN(match2[0].toUpperCase());
+                } else {
+                    showToast("未能辨識到 25N/26N 床號，請手動選擇", "error");
                 }
             }
+        } else {
+            showToast("雲端辨識失敗，請重試", "error");
         }
-    ).then(({ data: { text } }) => {
+    })
+    .catch(err => {
+        console.error("OCR API Error:", err);
         loadingModal.classList.add('hidden');
-        console.log("OCR 提取原始文字:", text);
-
-        // 1. 文字初步清理：全部轉大寫，並將常見 OCR 錯字進行修正 (例如 O -> 0, I -> 1)
-        let cleaned = text.toUpperCase()
-            .replace(/[\r\n]/g, ' ')
-            .replace(/O(?=\d)/g, '0')  // 字母 O 在數字前修正為 0
-            .replace(/(?<=\d)O/g, '0'); // 數字後的 O 修正為 0
-
-        // 2. 規則 1：直接搜尋 25N 或 26N 開頭的 10-11 位編號 (如 25N0626147)
-        const snRegex1 = /(2[56]N[0-9A-Z]{7,8})/g;
-        let match = cleaned.match(snRegex1);
-
-        if (match && match.length > 0) {
-            let resultSN = match[0].replace(/[^0-9A-Z]/g, '');
-            // 如果誤讀為 H/M，自動修正為 N (例如 25H0626147 -> 25N0626147)
-            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
-            applyRecognizedSN(resultSN);
-            return;
-        }
-
-        // 3. 規則 2：處理帶有破折號或空格的情況 (例如 "25N- 25N0626147")
-        const compact = cleaned.replace(/[\-\s]/g, '');
-        const snRegex2 = /(2[56][NHM][0-9A-Z]{7,8})/g;
-        match = compact.match(snRegex2);
-
-        if (match && match.length > 0) {
-            let resultSN = match[0];
-            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
-            applyRecognizedSN(resultSN);
-            return;
-        }
-
-        // 4. 備用降級規則：搜尋任何 2 開頭的 10 位數字組合
-        const looseRegex = /(2\d{9,10})/g;
-        match = compact.match(looseRegex);
-        if (match && match.length > 0) {
-            applyRecognizedSN(match[0]);
-            return;
-        }
-
-        showToast("未能辨識到 25N/26N 開頭的編號，請確保對焦清晰或手動選擇", "error");
-
-    }).catch(err => {
-        console.error("OCR Exception:", err);
-        loadingModal.classList.add('hidden');
-        showToast("照片辨識過程發生錯誤，請重試", "error");
+        showToast("網路請求失敗，請重試", "error");
     });
 }
         function applyRecognizedSN(detectedSN) {
