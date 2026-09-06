@@ -1798,22 +1798,16 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx8cVeFUHg4fSq2yQ40owFVGTo-ySEG8Pfi9pOybZT__8ogIgrM3h5u_2UyVG2pCeir/exec";
 
 if (GAS_URL) {
-    // 複製一份資料，先將大體積的相片與簽名歸零測試連線
-    var testRecord = Object.assign({}, record);
-    testRecord.photos = []; 
-    testRecord.signature = null;
-
-    console.log("正在發送測試資料至 GAS...", record);
+    console.log("正在發送資料至 GAS...", record);
 
     fetch(GAS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(Record)
+        body: JSON.stringify(record) // 改為小寫 record
     })
     .then(res => console.log("GAS 發送完成 (Response Status):", res.status))
     .catch(err => console.error("GAS 傳送發生錯誤:", err));
-}
-        }
+}        
 
         // --- Generate PDF HTML Helper ---
         function generatePdfHtmlString(record) {
