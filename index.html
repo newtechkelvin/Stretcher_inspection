@@ -997,7 +997,7 @@
             return selectEl.value;
         }
 
-        // --- 2. Label Photo OCR Recognition (Tesseract.js Enhanced) ---
+       // --- 2. Label Photo OCR Recognition (Optimized for Black Background Labels) ---
 
 function processLabelOCR(event) {
     const file = event.target.files[0];
@@ -1005,7 +1005,7 @@ function processLabelOCR(event) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
-        // 先進行圖片黑白高對比預處理，大幅提升 OCR 辨識率
+        // 對黑底白字的銘牌進行專屬預處理 (顏色反轉 + 對比度增強)
         preprocessImageForOCR(e.target.result, function(processedDataUrl) {
             runTesseractOCR(processedDataUrl);
         });
@@ -1013,15 +1013,15 @@ function processLabelOCR(event) {
     reader.readAsDataURL(file);
 }
 
-// 圖片預處理：轉灰階 + 提升對比度，解決手機影相字跡模糊問題
+// 圖片預處理：將黑底白字轉為白底黑字，大幅提升對比度
 function preprocessImageForOCR(dataUrl, callback) {
     const img = new Image();
     img.onload = function() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // 限制最大寬度以加快辨識速度
-        const maxDim = 1200;
+        // 設定適當解析度，利於 OCR 辨識
+        const maxDim = 1600;
         let w = img.width;
         let h = img.height;
         if (w > maxDim || h > maxDim) {
@@ -1041,18 +1041,26 @@ function preprocessImageForOCR(dataUrl, callback) {
         const imgData = ctx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
-        // 二值化/高對比灰階處理
+        // 反轉顏色 (Invert) + 灰階化 (Grayscale) + 增加對比度
         for (let i = 0; i < data.length; i += 4) {
-            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            // 對比度拉高
-            const v = avg > 110 ? 255 : 0;
-            data[i] = v;     // Red
-            data[i + 1] = v; // Green
-            data[i + 2] = v; // Blue
+            // 計算灰階亮度
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            
+            // 反轉：原本白的 (字體) 變成黑，原本黑的 (背景) 變成白
+            let inverted = 255 - gray;
+            
+            // 對比度拉高與邊緣增強
+            inverted = (inverted - 128) * 1.5 + 128;
+            if (inverted < 0) inverted = 0;
+            if (inverted > 255) inverted = 255;
+
+            data[i] = inverted;     // R
+            data[i + 1] = inverted; // G
+            data[i + 2] = inverted; // B
         }
 
         ctx.putImageData(imgData, 0, 0);
-        callback(canvas.toDataURL('image/jpeg', 0.9));
+        callback(canvas.toDataURL('image/jpeg', 0.95));
     };
     img.src = dataUrl;
 }
@@ -1063,7 +1071,7 @@ function runTesseractOCR(imageDataUrl) {
     const progressBar = document.getElementById('ocr-progress-bar');
 
     loadingModal.classList.remove('hidden');
-    statusText.innerText = "載入 AI 辨識引擎中...";
+    statusText.innerText = "載入 AI 銘牌辨識引擎...";
     progressBar.style.width = "15%";
 
     Tesseract.recognize(
@@ -1073,48 +1081,61 @@ function runTesseractOCR(imageDataUrl) {
             logger: m => {
                 if (m.status === 'recognizing text') {
                     const p = Math.round(m.progress * 100);
-                    statusText.innerText = `銘牌分析中... ${p}%`;
+                    statusText.innerText = `分析銘牌貼紙中... ${p}%`;
                     progressBar.style.width = `${p}%`;
                 }
             }
         }
     ).then(({ data: { text } }) => {
         loadingModal.classList.add('hidden');
-        console.log("OCR Raw Extracted Text:", text);
+        console.log("OCR 提取原始文字:", text);
 
-        // 清理文字：將常見誤認字元進行更正 (例如將字母 O 錯認為 0, I 錯認為 1)
-        const cleanedText = text.toUpperCase()
-            .replace(/[\r\n\t]/g, ' ')
-            .replace(/[^0-9A-Z\-\s]/g, '');
+        // 1. 文字初步清理：全部轉大寫，並將常見 OCR 錯字進行修正 (例如 O -> 0, I -> 1)
+        let cleaned = text.toUpperCase()
+            .replace(/[\r\n]/g, ' ')
+            .replace(/O(?=\d)/g, '0')  // 字母 O 在數字前修正為 0
+            .replace(/(?<=\d)O/g, '0'); // 數字後的 O 修正為 0
 
-        // 規則 1：搜尋標準 10-11 位以 2 開頭的編號 (如 26NG0903162, 25N0626099)
-        const primaryRegex = /\b2[0-9A-Z]{9,10}\b/gi;
-        let matches = cleanedText.match(primaryRegex);
+        // 2. 規則 1：直接搜尋 25N 或 26N 開頭的 10-11 位編號 (如 25N0626147)
+        const snRegex1 = /(2[56]N[0-9A-Z]{7,8})/g;
+        let match = cleaned.match(snRegex1);
 
-        if (matches && matches.length > 0) {
-            applyRecognizedSN(matches[0].toUpperCase());
+        if (match && match.length > 0) {
+            let resultSN = match[0].replace(/[^0-9A-Z]/g, '');
+            // 如果誤讀為 H/M，自動修正為 N (例如 25H0626147 -> 25N0626147)
+            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
+            applyRecognizedSN(resultSN);
             return;
         }
 
-        // 規則 2：處理中間有空格/破折號的情況 (如 "26N- 26NG0903162" 或 "26N 0626099")
-        const compactText = cleanedText.replace(/[\-\s]/g, '');
-        const secondaryRegex = /2[0-9A-Z]{9,10}/gi;
-        matches = compactText.match(secondaryRegex);
+        // 3. 規則 2：處理帶有破折號或空格的情況 (例如 "25N- 25N0626147")
+        const compact = cleaned.replace(/[\-\s]/g, '');
+        const snRegex2 = /(2[56][NHM][0-9A-Z]{7,8})/g;
+        match = compact.match(snRegex2);
 
-        if (matches && matches.length > 0) {
-            applyRecognizedSN(matches[0].toUpperCase());
+        if (match && match.length > 0) {
+            let resultSN = match[0];
+            resultSN = resultSN.replace(/^2([56])[HM]/, '2$1N');
+            applyRecognizedSN(resultSN);
             return;
         }
 
-        showToast("未能自動辨識到以 2 開頭的擔架床編號，請確保對焦清晰或手動選擇", "error");
+        // 4. 備用降級規則：搜尋任何 2 開頭的 10 位數字組合
+        const looseRegex = /(2\d{9,10})/g;
+        match = compact.match(looseRegex);
+        if (match && match.length > 0) {
+            applyRecognizedSN(match[0]);
+            return;
+        }
+
+        showToast("未能辨識到 25N/26N 開頭的編號，請確保對焦清晰或手動選擇", "error");
 
     }).catch(err => {
         console.error("OCR Exception:", err);
         loadingModal.classList.add('hidden');
-        showToast("照片辨識發生錯誤，請重試", "error");
+        showToast("照片辨識過程發生錯誤，請重試", "error");
     });
 }
-
         function applyRecognizedSN(detectedSN) {
             showToast(`成功辨識標籤床號: ${detectedSN}`);
 
