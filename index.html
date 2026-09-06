@@ -1803,12 +1803,12 @@ if (GAS_URL) {
     testRecord.photos = []; 
     testRecord.signature = null;
 
-    console.log("正在發送測試資料至 GAS...", testRecord);
+    console.log("正在發送測試資料至 GAS...", record);
 
     fetch(GAS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(testRecord)
+        body: JSON.stringify(Record)
     })
     .then(res => console.log("GAS 發送完成 (Response Status):", res.status))
     .catch(err => console.error("GAS 傳送發生錯誤:", err));
