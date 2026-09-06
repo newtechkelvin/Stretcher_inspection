@@ -14,6 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <!-- JSZip for Batch PDF Downloading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- html2pdf.js for Generating True PDFs in Browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .canvas-container { touch-action: none; }
@@ -270,7 +272,7 @@
                 <div id="step-3" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
                     <div class="border-b border-slate-100 pb-4">
                         <h2 class="text-lg font-bold text-slate-900">Step 3: 現場相片記錄</h2>
-                        <p class="text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片（將直接上傳至 Google Drive）</p>
+                        <p class="text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片（系統會自動對圖片進行智慧壓縮，加快上傳效率）</p>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -278,7 +280,7 @@
                             <div class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-teal-500 transition bg-slate-50 relative cursor-pointer" onclick="document.getElementById('photo-input').click()">
                                 <i class="fa-solid fa-camera-retro text-4xl text-slate-400 mb-2"></i>
                                 <p class="text-sm font-semibold text-slate-700">按下啟動相機 / 上傳相片</p>
-                                <p class="text-xs text-slate-400 mt-1">支援 JPG, PNG 格式 (可選多張)</p>
+                                <p class="text-xs text-teal-600 font-medium mt-1">✓ 自動進行 1200px 輕量化高畫質壓縮</p>
                                 <input type="file" id="photo-input" accept="image/*" capture="environment" multiple onchange="handlePhotoUpload(event)" class="hidden">
                             </div>
 
@@ -509,7 +511,6 @@
                     <div class="relative w-full h-40 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 cursor-crosshair">
                         <canvas id="batch-signature-pad" class="w-full h-full block"></canvas>
                     </div>
-                    <!-- 新增：批量簽名彈出視窗下方確認聲明文字 -->
                     <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
                         本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
                     </p>
@@ -547,14 +548,21 @@
                     <label class="block font-bold text-slate-700 mb-1">電郵補充訊息</label>
                     <textarea id="batch-email-body" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">閣下好，附件為已完成點檢之擔架床檢查報告，請查收。</textarea>
                 </div>
+                <div class="p-2.5 bg-blue-50 rounded-xl border border-blue-200 text-[11px] text-blue-800 leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    點擊「喚起郵件 App 寄送」後，系統會自動下載選取的 PDF 報告 Zip 包，並開啟手機預設郵件 App（如 Gmail / Mail）。
+                </div>
             </div>
 
             <div class="flex justify-end space-x-3 pt-2 border-t border-slate-100">
                 <button type="button" onclick="closeBatchEmailModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
-                <button type="button" onclick="sendBatchEmail()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition">發送電郵</button>
+                <button type="button" onclick="sendBatchEmail()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition">喚起郵件 App 寄送</button>
             </div>
         </div>
     </div>
+
+    <!-- Hidden Container for Off-screen PDF Rendering -->
+    <div id="pdf-render-offscreen" class="fixed left-[-9999px] top-[-9999px] w-[800px] bg-white p-8"></div>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -1446,24 +1454,64 @@
             return true;
         }
 
-        // Photo Handlers
-        function handlePhotoUpload(event) {
+        // --- Photo Handlers & Automatic Image Compression Engine ---
+        function compressAndResizeImage(file, maxDimension = 1200, quality = 0.75) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxDimension || h > maxDimension) {
+                            if (w > h) {
+                                h = Math.round((h * maxDimension) / w);
+                                w = maxDimension;
+                            } else {
+                                w = Math.round((w * maxDimension) / h);
+                                h = maxDimension;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        resolve(compressedDataUrl);
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePhotoUpload(event) {
             const files = event.target.files;
             if(!files || files.length === 0) return;
 
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+            showToast("正在針對相片進行智慧壓縮處理...");
+
+            for (let file of Array.from(files)) {
+                try {
+                    const compressedDataUrl = await compressAndResizeImage(file, 1200, 0.75);
                     uploadedPhotos.push({
                         id: Date.now() + Math.random().toString(36).substr(2, 4),
-                        dataUrl: e.target.result,
+                        dataUrl: compressedDataUrl,
                         title: `相片 #${uploadedPhotos.length + 1}`,
                         note: "損壞部位及外觀紀錄"
                     });
-                    renderPhotoGrid();
-                };
-                reader.readAsDataURL(file);
-            });
+                } catch(err) {
+                    console.error("相片壓縮失敗:", err);
+                }
+            }
+
+            renderPhotoGrid();
+            showToast(`已成功上傳並壓縮 ${files.length} 張相片`);
         }
 
         function addSamplePhoto() {
@@ -1748,7 +1796,7 @@
             }, 600);
 
             // Live GAS sync if available
-            const GAS_URL = "https://script.google.com/macros/s/AKfycbwVkC13q-sHPQCISVspGwzgx3BgfThtRWCK3OLF3mtctOEAhT5_JDATROE5U6VRLxA2/exec";
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbyUS3BQmY9ja8_i2e0rYXS5opfKCGx2sUTerS1W2TRrN-nDJZvqAkVJJsInyVaM-YQ/exec";
             if (GAS_URL) {
                 try {
                     fetch(GAS_URL, {
@@ -1761,9 +1809,8 @@
             }
         }
 
-        // --- PDF Rendering Modal ---
-        function openPdfModal(record) {
-            const body = document.getElementById('pdf-document-body');
+        // --- Generate PDF HTML Helper ---
+        function generatePdfHtmlString(record) {
             const categorizedChecklist = {};
             if (record.checklist && record.checklist.length > 0) {
                 record.checklist.forEach(item => {
@@ -1818,7 +1865,7 @@
                 photosHtml += `</div></div>`;
             }
 
-            body.innerHTML = `
+            return `
                 <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
                     <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
                         <div>
@@ -1892,7 +1939,12 @@
                     </div>
                 </div>
             `;
+        }
 
+        // --- PDF Rendering Modal ---
+        function openPdfModal(record) {
+            const body = document.getElementById('pdf-document-body');
+            body.innerHTML = generatePdfHtmlString(record);
             document.getElementById('pdf-modal').classList.remove('hidden');
         }
 
@@ -2133,31 +2185,50 @@
             showToast(`已成功為 ${updatedCount} 份報告寫入批量集中簽收！`);
         }
 
-        // --- 批量下載 PDF (打包 Zip) ---
-        function batchDownloadPdfs() {
+        // --- 批量下載真實 PDF Zip 包 (html2pdf.js + JSZip) ---
+        async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
 
-            const zip = new JSZip();
             const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+            const zip = new JSZip();
+            const renderOffscreen = document.getElementById('pdf-render-offscreen');
 
-            showToast(`正在生成 ${selectedRecords.length} 份 PDF 報告並打包中...`);
+            showToast(`正在渲染生成 ${selectedRecords.length} 份真實 PDF 報告...`);
 
-            selectedRecords.forEach(rec => {
-                const textContent = `======== 擔架床巡查報告 #${rec.refNo} ========\n醫院: ${rec.hospital}\n車牌: ${rec.vehiclePlate}\n床號: ${rec.stretcherId}\n檢查員: ${rec.inspector}\n日期: ${rec.date}\n狀態: ${rec.overallStatus}\n簽署代表: ${rec.signerName} (${rec.signerDept})\n========================================`;
-                zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.txt`, textContent);
-            });
+            for (let i = 0; i < selectedRecords.length; i++) {
+                const rec = selectedRecords[i];
+                renderOffscreen.innerHTML = generatePdfHtmlString(rec);
+
+                const opt = {
+                    margin:       8,
+                    filename:     `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                try {
+                    const pdfBlob = await html2pdf().set(opt).from(renderOffscreen).output('blob');
+                    zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`, pdfBlob);
+                } catch (err) {
+                    console.error("PDF 渲染出錯:", err);
+                }
+            }
+
+            renderOffscreen.innerHTML = '';
+            showToast("PDF 檔生成完成，正在進行 Zip 打包壓縮...");
 
             zip.generateAsync({ type: "blob" }).then(function(content) {
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(content);
                 a.download = `擔架床巡查報告批量導出_${new Date().toISOString().slice(0,10)}.zip`;
                 a.click();
-                showToast("PDF 打包下載完成！");
+                showToast("真實 PDF Zip 打包下載完成！");
             });
         }
 
-        // --- 批量 Email 寄送 ---
+        // --- 批量 Email 寄送 Modal 與 mailto: 喚起 ---
         function openBatchEmailModal() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
@@ -2168,7 +2239,7 @@
             document.getElementById('batch-email-modal').classList.add('hidden');
         }
 
-        function sendBatchEmail() {
+        async function sendBatchEmail() {
             const email = document.getElementById('batch-email-target').value.trim();
             if (!email) {
                 showToast("請輸入電郵地址", "error");
@@ -2176,8 +2247,24 @@
             }
 
             const selectedIds = getSelectedRecordIds();
-            showToast(`已成功透過系統發送 ${selectedIds.length} 份報告至 ${email}！`);
+            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+            const subject = document.getElementById('batch-email-subject').value;
+            const customBody = document.getElementById('batch-email-body').value;
+
+            // 1. 自動觸發真實 PDF Zip 下載備妥檔案
+            batchDownloadPdfs();
+
+            // 2. 構建郵件內容明細
+            let itemsSummary = selectedRecords.map(r => `• 報告編號: #${r.refNo} | 車牌: ${r.vehiclePlate || 'N/A'} | 床號: ${r.stretcherId} | 狀態: ${r.overallStatus}`).join('\n');
+            let fullBody = `${customBody}\n\n【本次寄送之巡查報告清單（共 ${selectedRecords.length} 份）】\n${itemsSummary}\n\n（註：系統已自動將對應 PDF 報告下載至閣下裝置，請於開啟的郵件程式中點擊夾帶附件即可。）`;
+
+            // 3. 喚起手機/系統預設郵件 App (mailto:)
+            const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+            
             closeBatchEmailModal();
+            setTimeout(() => {
+                window.location.href = mailtoUrl;
+            }, 800);
         }
 
         function deleteInspectionRecord(recordId, refNo) {
