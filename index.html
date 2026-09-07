@@ -18,27 +18,27 @@
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .canvas-container { touch-action: none; }
     
-    /* PDF A4 專業大字體清晰版樣式 */
+    /* PDF A4 專業大字體清晰版樣式 - 針對手機版另存 PDF 防溢頁與裁切進行精細微調 */
     .pdf-compact-container {
-        font-size: 13px !important;
-        line-height: 1.45 !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
         box-sizing: border-box !important;
         width: 794px !important; /* 標準 A4 像素寬度 */
         max-width: 794px !important;
         min-width: 794px !important;
         margin: 0 auto !important;
-        padding: 20px !important;
+        padding: 16px 24px !important;
         color: #0f172a !important;
         background-color: #ffffff !important;
         -webkit-text-size-adjust: 100% !important;
         text-size-adjust: 100% !important;
     }
-    .pdf-compact-container h1 { font-size: 20px !important; }
+    .pdf-compact-container h1 { font-size: 18px !important; }
     .pdf-compact-container table td, .pdf-compact-container table th {
-        padding-top: 6px !important;
-        padding-bottom: 6px !important;
-        padding-left: 8px !important;
-        padding-right: 8px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        padding-left: 6px !important;
+        padding-right: 6px !important;
     }
     .pdf-compact-container tr, 
     .pdf-compact-container .photo-card, 
@@ -50,7 +50,7 @@
     @media print {
         @page {
             size: A4 portrait;
-            margin: 5mm;
+            margin: 0mm !important; /* 移除瀏覽器預設大邊距，避免右側裁切及多出第 2 頁 */
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -515,6 +515,9 @@
                     <div class="relative w-full h-36 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 cursor-crosshair">
                         <canvas id="batch-signature-pad" class="w-full h-full block"></canvas>
                     </div>
+                    <p class="text-[10px] sm:text-[11px] text-slate-500 leading-tight pt-1">
+                        本人（授權代表）確認已完成上述擔架床之檢查，並確認該擔架床處於良好及正常運作狀態。
+                    </p>
                 </div>
             </div>
 
@@ -1629,7 +1632,7 @@
             }
         }
 
-        // --- Generate PDF HTML ---
+        // --- Generate PDF HTML (微調極限收納版型) ---
         function generatePdfHtmlString(record) {
             const categorizedChecklist = {};
             if (record.checklist && record.checklist.length > 0) {
@@ -1649,10 +1652,10 @@
                     if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
 
                     itemsRows += `
-                        <tr class="border-b border-slate-100 text-[11px]">
-                            <td class="py-1.5 px-3 text-slate-800 pl-4 font-normal">${item.name}</td>
-                            <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
-                                <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
+                        <tr class="border-b border-slate-100 text-[10.5px]">
+                            <td class="py-1 px-2.5 text-slate-800 pl-3 font-normal">${item.name}</td>
+                            <td class="py-1 px-2.5 text-center w-24 whitespace-nowrap">
+                                <span class="px-1.5 py-0.2 rounded inline-block whitespace-nowrap ${badgeClass}">
                                     ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
                                 </span>
                             </td>
@@ -1661,8 +1664,8 @@
                 });
 
                 checklistHtml += `
-                    <tr class="bg-slate-100/90 text-slate-800 text-[11px] font-bold border-b border-slate-200">
-                        <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
+                    <tr class="bg-slate-100/90 text-slate-800 text-[10.5px] font-bold border-b border-slate-200">
+                        <td class="py-1 px-2.5" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1 text-teal-600"></i>${catName}</td>
                     </tr>
                     ${itemsRows}
                 `;
@@ -1670,14 +1673,14 @@
 
             let photosHtml = '';
             if (record.photos && record.photos.length > 0) {
-                photosHtml = `<div class="mt-3 border-t border-slate-200 pt-2 photo-card">
-                    <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">現場檢驗相片紀錄 (${record.photos.length} 張)</h3>
-                    <div class="grid grid-cols-3 gap-2.5">`;
+                photosHtml = `<div class="mt-2 border-t border-slate-200 pt-1.5 photo-card">
+                    <h3 class="font-bold text-[11px] text-slate-700 uppercase mb-1">現場檢驗相片紀錄 (${record.photos.length} 張)</h3>
+                    <div class="grid grid-cols-3 gap-2">`;
                 record.photos.slice(0, 3).forEach(p => {
                     photosHtml += `
-                        <div class="border border-slate-200 p-1.5 rounded-lg bg-slate-50 text-center">
-                            <img src="${p.dataUrl}" class="h-16 w-full object-cover rounded mb-1">
-                            <p class="text-[10px] font-bold text-slate-800 truncate">${p.title || '現場照片'}</p>
+                        <div class="border border-slate-200 p-1 rounded bg-slate-50 text-center">
+                            <img src="${p.dataUrl}" class="h-14 w-full object-cover rounded mb-0.5">
+                            <p class="text-[9.5px] font-bold text-slate-800 truncate">${p.title || '現場照片'}</p>
                         </div>
                     `;
                 });
@@ -1687,46 +1690,46 @@
             return `
                 <div class="pdf-compact-container font-sans text-slate-800">
                     <!-- Header -->
-                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-2 mb-3">
+                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-1.5 mb-2">
                         <div>
-                            <h1 class="text-lg font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
-                            <p class="text-xs text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
+                            <h1 class="text-base font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
+                            <p class="text-[10px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
                         </div>
                         <div class="text-right">
-                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-0.5">
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-0.5">
                                 ${record.overallStatus || '檢查合格'}
                             </span>
-                            <p class="text-xs font-mono font-bold text-slate-600"># ${record.refNo}</p>
+                            <p class="text-[11px] font-mono font-bold text-slate-600"># ${record.refNo}</p>
                         </div>
                     </div>
 
                     <!-- Meta Table -->
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5 mb-3">
-                        <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-1 mb-2">
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-1">
                             <div>
                                 <span class="text-slate-500">醫院 / 機構：</span>
-                                <strong class="text-slate-900 font-bold text-xs ml-1">${record.hospital}</strong>
+                                <strong class="text-slate-900 font-bold ml-1">${record.hospital}</strong>
                             </div>
-                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded font-bold font-mono text-xs">
+                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.2 rounded font-bold font-mono text-[10px]">
                                 型號: IRELAND DW-AL016
                             </div>
                         </div>
-                        <div class="grid grid-cols-4 gap-2 pt-0.5">
-                            <div><span class="text-slate-500">車牌:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
-                            <div><span class="text-slate-500">床號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
-                            <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector || 'Chris Chong'}</strong></div>
-                            <div><span class="text-slate-500">日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
+                        <div class="grid grid-cols-4 gap-1.5 pt-0.5">
+                            <div><span class="text-slate-500">車牌:</span> <strong class="text-teal-700 font-mono font-bold block">${record.vehiclePlate || 'N/A'}</strong></div>
+                            <div><span class="text-slate-500">床號:</span> <strong class="text-slate-900 font-mono font-bold block">${record.stretcherId}</strong></div>
+                            <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block">${record.inspector || 'Chris Chong'}</strong></div>
+                            <div><span class="text-slate-500">日期時間:</span> <strong class="text-slate-900 block">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
                         </div>
                     </div>
 
                     <!-- Checklist Table -->
-                    <div class="mb-3">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-1">檢查項目測試結果 SUMMARY</h3>
+                    <div class="mb-2">
+                        <h3 class="font-bold text-[11px] text-slate-700 uppercase mb-1">檢查項目測試結果 SUMMARY</h3>
                         <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
                             <thead>
-                                <tr class="bg-slate-800 text-white text-xs font-bold">
-                                    <th class="py-1.5 px-3">檢測分類與項目</th>
-                                    <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
+                                <tr class="bg-slate-800 text-white text-[10.5px] font-bold">
+                                    <th class="py-1 px-2.5">檢測分類與項目</th>
+                                    <th class="py-1 px-2.5 text-center w-24 whitespace-nowrap">結果</th>
                                 </tr>
                             </thead>
                             <tbody>${checklistHtml}</tbody>
@@ -1736,34 +1739,34 @@
                     ${photosHtml}
 
                     <!-- Footer & Signature Section -->
-                    <div class="border-t border-slate-200 pt-2.5 grid grid-cols-2 gap-4 mt-3 signature-block">
-                        <div class="space-y-1.5 text-xs">
+                    <div class="border-t border-slate-200 pt-2 grid grid-cols-2 gap-3 mt-2 signature-block">
+                        <div class="space-y-1 text-[11px]">
                             <div>
-                                <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
-                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-[11px] min-h-[36px]">
+                                <p class="text-slate-500 mb-0.5 text-[10px]">特別說明 / 備註:</p>
+                                <div class="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-[10px] min-h-[30px]">
                                     ${record.notes || '無特別備註。'}
                                 </div>
                             </div>
-                            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-500 leading-relaxed">
+                            <div class="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-tight">
                                 <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
-                                <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
+                                <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收當刻處於良好及正常運作狀態。</p>
                             </div>
                         </div>
 
-                        <div class="space-y-1 text-right text-xs">
-                            <p class="text-slate-500 text-[11px]">客戶 / 醫院代表電子簽收:</p>
+                        <div class="space-y-0.5 text-right text-[11px]">
+                            <p class="text-slate-500 text-[10px]">客戶 / 醫院代表電子簽收:</p>
                             ${record.signature ? `
-                                <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
-                                    <img src="${record.signature}" class="h-12 object-contain inline-block">
+                                <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-0.5">
+                                    <img src="${record.signature}" class="h-10 object-contain inline-block">
                                 </div>
-                            ` : `<div class="h-12 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
-                            <p class="font-bold text-slate-800 text-xs mt-1">${record.signerName} (${record.signerDept || '驗收人員'})</p>
+                            ` : `<div class="h-10 flex items-center justify-end font-bold text-amber-600 text-[10px] italic">（待現場客戶簽署）</div>`}
+                            <p class="font-bold text-slate-800 text-[11px] mt-0.5">${record.signerName} (${record.signerDept || '驗收人員'})</p>
                         </div>
                     </div>
 
                     <!-- Official Company Name Footer -->
-                    <div class="border-t border-slate-300 pt-2 text-center mt-3">
-                        <p class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    <div class="border-t border-slate-300 pt-1.5 text-center mt-2">
+                        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">
                             Issued by New Tech Motor Engineering Limited
                         </p>
                     </div>
@@ -2056,7 +2059,7 @@
             });
         }
 
-        // ✅ 跨裝置防走位＋高清晰原生 PDF 匯出函數
+        // ✅ 手機版防裁切＋防跨頁 PDF 匯出函數
         async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) {
@@ -2081,7 +2084,7 @@
                 document.body.appendChild(iframe);
             }
 
-            // 2. 寫入獨立渲染 HTML (鎖定 794px 寬度防止手機/電腦響應式走位)
+            // 2. 寫入獨立渲染 HTML
             for (let i = 0; i < selectedRecords.length; i++) {
                 const rec = selectedRecords[i];
                 const iframeDoc = iframe.contentWindow.document;
@@ -2096,6 +2099,7 @@
                         <script src="https://cdn.tailwindcss.com"><\/script>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
                         <style>
+                            @page { size: A4 portrait; margin: 0mm !important; }
                             body { 
                                 font-family: sans-serif; 
                                 background: #ffffff !important; 
@@ -2109,7 +2113,7 @@
                                 max-width: 794px !important; 
                                 min-width: 794px !important; 
                                 margin: 0 auto !important; 
-                                padding: 20px !important;
+                                padding: 16px 24px !important;
                                 box-sizing: border-box !important;
                             }
                             .pdf-compact-container tr, 
@@ -2118,7 +2122,6 @@
                                 page-break-inside: avoid !important;
                                 break-inside: avoid !important;
                             }
-                            @page { size: A4 portrait; margin: 5mm; }
                         </style>
                     </head>
                     <body>
