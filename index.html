@@ -2049,67 +2049,81 @@
             });
         }
 
-        // ✅ 核心修復：直接下載多份 PDF 檔（不彈出列印頁，不生成 ZIP）
-        async function batchDownloadPdfs() {
-            const selectedIds = getSelectedRecordIds();
-            if (selectedIds.length === 0) return;
+        // ✅ 徹底修復 PDF 下載空白問題的非同步函數
+async function batchDownloadPdfs() {
+    const selectedIds = getSelectedRecordIds();
+    if (selectedIds.length === 0) return;
 
-            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-            const renderContainer = document.getElementById('pdf-render-offscreen');
+    const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+    const renderContainer = document.getElementById('pdf-render-offscreen');
 
-            showToast(`開始處理 ${selectedRecords.length} 份 PDF 下載...`);
-            renderContainer.classList.remove('hidden');
+    showToast(`開始處理 ${selectedRecords.length} 份 PDF 下載...`);
 
-            for (let i = 0; i < selectedRecords.length; i++) {
-                const rec = selectedRecords[i];
-                
-                // 1. 寫入 DOM 並設置固定高寬
-                renderContainer.innerHTML = generatePdfHtmlString(rec);
-                
-                // 2. 延遲 400ms 確保 Tailwind CDN 與 Base64 照片完全繪製
-                await new Promise(resolve => setTimeout(resolve, 400));
+    // 1. 顯示渲染層（必須確保在畫面渲染樹中）
+    renderContainer.style.display = 'block';
+    renderContainer.classList.remove('hidden');
 
-                const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
+    for (let i = 0; i < selectedRecords.length; i++) {
+        const rec = selectedRecords[i];
+        
+        // 2. 寫入HTML內容
+        renderContainer.innerHTML = generatePdfHtmlString(rec);
+        
+        // 3. 強制瀏覽器執行 Reflow (重新計算佈局)
+        void renderContainer.offsetHeight;
 
-                const opt = {
-                    margin:       [5, 5, 5, 5],
-                    filename:     fileName,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true, 
-                        logging: false,
-                        windowWidth: 794
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
+        // 4. 等待 600ms 確保所有 Base64 圖片與樣式完整加載
+        await new Promise(resolve => setTimeout(resolve, 600));
 
-                try {
-                    // 3. 生成 PDF Blob 資料並觸發瀏覽器獨立下載
-                    const pdfBlob = await html2pdf().set(opt).from(renderContainer).output('blob');
-                    
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(pdfBlob);
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(link.href);
+        const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
 
-                    showToast(`已下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
-                } catch (err) {
-                    console.error("PDF 下載失敗:", err);
-                }
+        const opt = {
+            margin:       [5, 5, 5, 5],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false,
+                backgroundColor: '#ffffff', // 確保背景為純白
+                width: 794,                // 固定標準 A4 寬度
+                windowWidth: 794,
+                scrollX: 0,
+                scrollY: 0
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
 
-                // 4. 給予 300ms 間隔，防止瀏覽器阻擋連續下載
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
+        try {
+            // 5. 擷取並轉換成 PDF Blob
+            const pdfBlob = await html2pdf().set(opt).from(renderContainer).output('blob');
+            
+            // 6. 觸發自動下載
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(pdfBlob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
 
-            // 5. 處理完成後關閉渲染容器
-            renderContainer.innerHTML = '';
-            renderContainer.classList.add('hidden');
-            showToast("所有 PDF 已成功直接下載！");
+            showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
+        } catch (err) {
+            console.error("PDF 繪製失敗:", err);
+            showToast(`下載失敗: ${fileName}`, "error");
         }
+
+        // 7. 間隔 400ms 再下載下一份，避免瀏覽器阻擋連續下載
+        await new Promise(resolve => setTimeout(resolve, 400));
+    }
+
+    // 8. 處理完畢後清空並隱藏渲染容器
+    renderContainer.innerHTML = '';
+    renderContainer.style.display = 'none';
+    renderContainer.classList.add('hidden');
+    
+    showToast("所有 PDF 報告已成功匯出！");
+}
 
         function showToast(message, type = "success") {
             const toast = document.getElementById('toast');
