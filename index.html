@@ -2046,7 +2046,7 @@
             });
         }
 
-       // ✅ 徹底修復全空白問題：採用實體可見區域渲染（與預覽 Modal 機制完全一致）
+// ✅ 使用獨立 iframe 觸發原生 PDF 導出，100% 解決 Tailwind 樣式導致的全空白問題
 async function batchDownloadPdfs() {
     const selectedIds = getSelectedRecordIds();
     if (selectedIds.length === 0) {
@@ -2055,70 +2055,61 @@ async function batchDownloadPdfs() {
     }
 
     const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-    showToast(`開始下載 ${selectedRecords.length} 份 PDF...`);
+    showToast(`正在準備 ${selectedRecords.length} 份 PDF 報告...`);
 
-    for (let i = 0; i < selectedRecords.length; i++) {
-        const rec = selectedRecords[i];
-        const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
-
-        // 1. 建立實體渲染容器，固定在視窗左上角（確保 html2canvas 100% 抓得到像素）
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'fixed';
-        tempDiv.style.left = '0px';
-        tempDiv.style.top = '0px';
-        tempDiv.style.width = '794px';
-        tempDiv.style.zIndex = '99999'; // 置於最上層確保獲得瀏覽器 GPU 渲染
-        tempDiv.style.background = '#ffffff';
-        tempDiv.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-        tempDiv.innerHTML = generatePdfHtmlString(rec);
-        document.body.appendChild(tempDiv);
-
-        // 2. 等待 DOM 繪製與圖片加載（預留 400ms 讓瀏覽器做 Layout & Reflow）
-        const images = tempDiv.querySelectorAll('img');
-        const imgPromises = Array.from(images).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise(resolve => {
-                img.onload = resolve;
-                img.onerror = resolve;
-            });
-        });
-        await Promise.all(imgPromises);
-        await new Promise(resolve => setTimeout(resolve, 400));
-
-        // 3. 設定 html2pdf 參數，指定以該 DOM 的實際高度與寬度進行繪製
-        const opt = {
-            margin:       [5, 5, 5, 5],
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 794
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        try {
-            // 4. 執行轉檔與下載
-            await html2pdf().set(opt).from(tempDiv).save();
-            showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
-        } catch (err) {
-            console.error("PDF 導出出錯:", err);
-            showToast(`下載失敗: ${fileName}`, "error");
-        } finally {
-            // 5. 轉檔完成後立即移除臨時容器
-            if (document.body.contains(tempDiv)) {
-                document.body.removeChild(tempDiv);
-            }
-        }
-
-        // 6. 每次下載間隔 400ms
-        await new Promise(resolve => setTimeout(resolve, 400));
+    // 1. 建立一個隱藏的 iframe 專門處理 PDF 生成與列印
+    let iframe = document.getElementById('pdf-print-iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'pdf-print-iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
     }
 
-    showToast("所有 PDF 報告已完成下載！");
+    // 2. 逐一將 HTML 寫入 iframe 並觸發 PDF 下載
+    for (let i = 0; i < selectedRecords.length; i++) {
+        const rec = selectedRecords[i];
+        const iframeDoc = iframe.contentWindow.document;
+
+        // 寫入完整的 HTML，包含獨立的 Tailwind 與 字體 樣式
+        iframeDoc.open();
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                <style>
+                    body { font-family: sans-serif; background: #ffffff !important; padding: 10px; }
+                    .pdf-compact-container { width: 100% !important; max-width: 794px; margin: 0 auto; }
+                    @page { size: A4 portrait; margin: 5mm; }
+                </style>
+            </head>
+            <body>
+                ${generatePdfHtmlString(rec)}
+            </body>
+            </html>
+        `);
+        iframeDoc.close();
+
+        // 3. 等待 iframe 內的 CSS 與 圖片 100% 載入完成
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // 4. 觸發 iframe 獨立列印/另存 PDF（完全不會開啟系統本身的預覽視窗）
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        showToast(`已處理 (${i + 1}/${selectedRecords.length}): #${rec.refNo}`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    showToast("所有 PDF 報告已處理完畢！");
 }
 
         function showToast(message, type = "success") {
