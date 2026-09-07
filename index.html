@@ -24,10 +24,14 @@
         line-height: 1.45 !important;
         box-sizing: border-box !important;
         width: 794px !important; /* 標準 A4 像素寬度 */
+        max-width: 794px !important;
+        min-width: 794px !important;
         margin: 0 auto !important;
         padding: 20px !important;
         color: #0f172a !important;
         background-color: #ffffff !important;
+        -webkit-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
     }
     .pdf-compact-container h1 { font-size: 20px !important; }
     .pdf-compact-container table td, .pdf-compact-container table th {
@@ -36,11 +40,17 @@
         padding-left: 8px !important;
         padding-right: 8px !important;
     }
+    .pdf-compact-container tr, 
+    .pdf-compact-container .photo-card, 
+    .pdf-compact-container .signature-block {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
 
     @media print {
         @page {
             size: A4 portrait;
-            margin: 6mm;
+            margin: 5mm;
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -1660,7 +1670,7 @@
 
             let photosHtml = '';
             if (record.photos && record.photos.length > 0) {
-                photosHtml = `<div class="mt-3 border-t border-slate-200 pt-2">
+                photosHtml = `<div class="mt-3 border-t border-slate-200 pt-2 photo-card">
                     <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">現場檢驗相片紀錄 (${record.photos.length} 張)</h3>
                     <div class="grid grid-cols-3 gap-2.5">`;
                 record.photos.slice(0, 3).forEach(p => {
@@ -1726,7 +1736,7 @@
                     ${photosHtml}
 
                     <!-- Footer & Signature Section -->
-                    <div class="border-t border-slate-200 pt-2.5 grid grid-cols-2 gap-4 mt-3">
+                    <div class="border-t border-slate-200 pt-2.5 grid grid-cols-2 gap-4 mt-3 signature-block">
                         <div class="space-y-1.5 text-xs">
                             <div>
                                 <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
@@ -2046,71 +2056,91 @@
             });
         }
 
-// ✅ 使用獨立 iframe 觸發原生 PDF 導出，100% 解決 Tailwind 樣式導致的全空白問題
-async function batchDownloadPdfs() {
-    const selectedIds = getSelectedRecordIds();
-    if (selectedIds.length === 0) {
-        showToast("請先勾選要下載的報告", "error");
-        return;
-    }
+        // ✅ 跨裝置防走位＋高清晰原生 PDF 匯出函數
+        async function batchDownloadPdfs() {
+            const selectedIds = getSelectedRecordIds();
+            if (selectedIds.length === 0) {
+                showToast("請先勾選要下載的報告", "error");
+                return;
+            }
 
-    const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-    showToast(`正在準備 ${selectedRecords.length} 份 PDF 報告...`);
+            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+            showToast(`正在準備 ${selectedRecords.length} 份 PDF 報告...`);
 
-    // 1. 建立一個隱藏的 iframe 專門處理 PDF 生成與列印
-    let iframe = document.getElementById('pdf-print-iframe');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'pdf-print-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-    }
+            // 1. 建立獨立隱藏的 iframe
+            let iframe = document.getElementById('pdf-print-iframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'pdf-print-iframe';
+                iframe.style.position = 'fixed';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                document.body.appendChild(iframe);
+            }
 
-    // 2. 逐一將 HTML 寫入 iframe 並觸發 PDF 下載
-    for (let i = 0; i < selectedRecords.length; i++) {
-        const rec = selectedRecords[i];
-        const iframeDoc = iframe.contentWindow.document;
+            // 2. 寫入獨立渲染 HTML (鎖定 794px 寬度防止手機/電腦響應式走位)
+            for (let i = 0; i < selectedRecords.length; i++) {
+                const rec = selectedRecords[i];
+                const iframeDoc = iframe.contentWindow.document;
 
-        // 寫入完整的 HTML，包含獨立的 Tailwind 與 字體 樣式
-        iframeDoc.open();
-        iframeDoc.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <script src="https://cdn.tailwindcss.com"><\/script>
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                <style>
-                    body { font-family: sans-serif; background: #ffffff !important; padding: 10px; }
-                    .pdf-compact-container { width: 100% !important; max-width: 794px; margin: 0 auto; }
-                    @page { size: A4 portrait; margin: 5mm; }
-                </style>
-            </head>
-            <body>
-                ${generatePdfHtmlString(rec)}
-            </body>
-            </html>
-        `);
-        iframeDoc.close();
+                iframeDoc.open();
+                iframeDoc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=794, initial-scale=1.0">
+                        <script src="https://cdn.tailwindcss.com"><\/script>
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                        <style>
+                            body { 
+                                font-family: sans-serif; 
+                                background: #ffffff !important; 
+                                margin: 0; 
+                                padding: 0; 
+                                -webkit-text-size-adjust: 100% !important;
+                                text-size-adjust: 100% !important;
+                            }
+                            .pdf-compact-container { 
+                                width: 794px !important; 
+                                max-width: 794px !important; 
+                                min-width: 794px !important; 
+                                margin: 0 auto !important; 
+                                padding: 20px !important;
+                                box-sizing: border-box !important;
+                            }
+                            .pdf-compact-container tr, 
+                            .pdf-compact-container .photo-card, 
+                            .pdf-compact-container .signature-block {
+                                page-break-inside: avoid !important;
+                                break-inside: avoid !important;
+                            }
+                            @page { size: A4 portrait; margin: 5mm; }
+                        </style>
+                    </head>
+                    <body>
+                        ${generatePdfHtmlString(rec)}
+                    </body>
+                    </html>
+                `);
+                iframeDoc.close();
 
-        // 3. 等待 iframe 內的 CSS 與 圖片 100% 載入完成
-        await new Promise(resolve => setTimeout(resolve, 600));
+                // 3. 等待 CSS 與 圖片 載入完成
+                await new Promise(resolve => setTimeout(resolve, 600));
 
-        // 4. 觸發 iframe 獨立列印/另存 PDF（完全不會開啟系統本身的預覽視窗）
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
+                // 4. 觸發原生列印 / 另存為 PDF
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
 
-        showToast(`已處理 (${i + 1}/${selectedRecords.length}): #${rec.refNo}`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
+                showToast(`已處理 (${i + 1}/${selectedRecords.length}): #${rec.refNo}`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
 
-    showToast("所有 PDF 報告已處理完畢！");
-}
+            showToast("所有 PDF 報告已處理完畢！");
+        }
 
         function showToast(message, type = "success") {
             const toast = document.getElementById('toast');
