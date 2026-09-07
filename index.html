@@ -515,9 +515,6 @@
         </div>
     </div>
 
-    <!-- ✅ 專用渲染層：固定 1:1 A4 比例，微透明疊加，保障 100% 不空白且直接下載 PDF -->
-    <div id="pdf-render-offscreen" style="position: fixed; left: 0; top: 0; width: 794px; z-index: 9999; opacity: 0.99; pointer-events: none;" class="hidden bg-white p-4 shadow-xl"></div>
-
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-amber-200">
@@ -2049,75 +2046,67 @@
             });
         }
 
-// ✅ 徹底解決空白頁問題的直接渲染函數
-async function batchDownloadPdfs() {
-    const selectedIds = getSelectedRecordIds();
-    if (selectedIds.length === 0) {
-        showToast("請先勾選要下載的報告", "error");
-        return;
-    }
+        // ✅ 徹底解決空白頁與語法錯誤的直接渲染下載函數
+        async function batchDownloadPdfs() {
+            const selectedIds = getSelectedRecordIds();
+            if (selectedIds.length === 0) {
+                showToast("請先勾選要下載的報告", "error");
+                return;
+            }
 
-    const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-    showToast(`開始下載 ${selectedRecords.length} 份 PDF...`);
+            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+            showToast(`開始下載 ${selectedRecords.length} 份 PDF...`);
 
-    for (let i = 0; i < selectedRecords.length; i++) {
-        const rec = selectedRecords[i];
-        const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
+            for (let i = 0; i < selectedRecords.length; i++) {
+                const rec = selectedRecords[i];
+                const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
 
-        // 1. 建立一個可見但定位在螢幕外的臨時實體容器
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '0px';
-        tempDiv.style.width = '794px'; // 固定 A4 寬度
-        tempDiv.style.background = '#ffffff';
-        tempDiv.innerHTML = generatePdfHtmlString(rec);
-        document.body.appendChild(tempDiv);
+                // 1. 建立一個可見但定位在螢幕外的臨時實體容器
+                const tempDiv = document.createElement('div');
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0px';
+                tempDiv.style.width = '794px'; // 固定 A4 寬度
+                tempDiv.style.background = '#ffffff';
+                tempDiv.innerHTML = generatePdfHtmlString(rec);
+                document.body.appendChild(tempDiv);
 
-        // 2. 等待 300ms 讓瀏覽器完全完成 DOM 與 CSS 渲染
-        await new Promise(resolve => setTimeout(resolve, 300));
+                // 2. 等待 300ms 讓瀏覽器完全完成 DOM 與 CSS 渲染
+                await new Promise(resolve => setTimeout(resolve, 300));
 
-        const opt = {
-            margin:       [8, 5, 8, 5],
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                logging: false,
-                backgroundColor: '#ffffff',
-                width: 794,
-                windowWidth: 794
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+                const opt = {
+                    margin:       [8, 5, 8, 5],
+                    filename:     fileName,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        logging: false,
+                        backgroundColor: '#ffffff',
+                        width: 794,
+                        windowWidth: 794
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
 
-        try {
-            // 3. 執行轉換並觸發下載
-            await html2pdf().set(opt).from(tempDiv).save();
-            showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
-        } catch (err) {
-            console.error("PDF 導出出錯:", err);
-            showToast(`下載失敗: ${fileName}`, "error");
-        } finally {
-            // 4. 清除臨時容器
-            document.body.removeChild(tempDiv);
+                try {
+                    // 3. 執行轉換並觸發下載
+                    await html2pdf().set(opt).from(tempDiv).save();
+                    showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
+                } catch (err) {
+                    console.error("PDF 導出出錯:", err);
+                    showToast(`下載失敗: ${fileName}`, "error");
+                } finally {
+                    // 4. 清除臨時容器
+                    document.body.removeChild(tempDiv);
+                }
+
+                // 5. 每次下載間隔 400ms，防止瀏覽器阻擋多檔案連續下載
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+
+            showToast("所有 PDF 報告已完成下載！");
         }
-
-        // 5. 每次下載間隔 400ms，防止瀏覽器阻擋多檔案連續下載
-        await new Promise(resolve => setTimeout(resolve, 400));
-    }
-
-    showToast("所有 PDF 報告已完成下載！");
-}
-
-    // 8. 處理完畢後清空並隱藏渲染容器
-    renderContainer.innerHTML = '';
-    renderContainer.style.display = 'none';
-    renderContainer.classList.add('hidden');
-    
-    showToast("所有 PDF 報告已成功匯出！");
-}
 
         function showToast(message, type = "success") {
             const toast = document.getElementById('toast');
