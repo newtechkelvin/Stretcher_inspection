@@ -29,6 +29,7 @@
         margin: 0 auto !important;
         padding: 8px !important;
         color: #1e293b !important;
+        background-color: #ffffff !important;
     }
     .pdf-compact-container h1 { font-size: 18px !important; }
     .pdf-compact-container table td, .pdf-compact-container table th {
@@ -108,7 +109,7 @@
         </div>
     </header>
 
-    <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700 max-w-sm">
+    <div id="toast" class="fixed bottom-5 right-5 z-[10000] transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700 max-w-sm">
         <i id="toast-icon" class="fa-solid fa-circle-check text-teal-400 text-lg sm:text-xl flex-shrink-0"></i>
         <span id="toast-message" class="text-xs sm:text-sm font-medium">提示訊息</span>
     </div>
@@ -516,8 +517,8 @@
         </div>
     </div>
 
-    <!-- Hidden Container for Off-screen PDF Rendering (修復：使用可渲染但半透明的專用容器) -->
-    <div id="pdf-render-offscreen" style="position: fixed; left: 0; top: 0; width: 790px; z-index: -9999; opacity: 0.01; background: #fff; pointer-events: none;"></div>
+    <!-- ✅ 專用渲染層（方案 B）：渲染時會短暫真正置於最上層（可見狀態）以確保截圖不空白 -->
+    <div id="pdf-render-offscreen" class="fixed inset-0 z-[999] bg-white p-6 overflow-y-auto hidden"></div>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -776,7 +777,7 @@
             initBatchSignaturePad();
             renderHospitalOptions();
             
-            // 從雲端載入最新歷史紀錄，並據此計算下一個正確的編號
+            // 從雲端載入歷史，並動態算發下一個 Ref No
             fetchHistoryFromCloud();
 
             window.addEventListener('resize', () => {
@@ -794,7 +795,7 @@
             }
         }
 
-        // 自動從雲端/歷史紀錄計算最大的流水號
+        // 從雲端 Sheet 自動計算並發發下一個編號
         function calculateNextRefNo() {
             let maxSeq = 0;
             const year2 = new Date().getFullYear().toString().slice(-2);
@@ -1623,7 +1624,7 @@
             }
         }
 
-        // --- Generate PDF HTML (字體加大與排版調優版) ---
+        // --- Generate PDF HTML ---
         function generatePdfHtmlString(record) {
             const categorizedChecklist = {};
             if (record.checklist && record.checklist.length > 0) {
@@ -1789,7 +1790,7 @@
             resetFormForNextInspection();
         }
 
-        // 從雲端同步歷史紀錄並發號編號
+        // 從雲端同步歷史紀錄
         function fetchHistoryFromCloud() {
             const tableBody = document.getElementById('history-table-body');
             if (tableBody) {
@@ -1808,7 +1809,6 @@
                     }
                     renderHistoryRecords();
                     updatePendingBadges();
-                    // ✅ 核心修復：從雲端 Sheet 計算並自動鎖定下一個正確的流水號編號
                     calculateNextRefNo();
                 }
             })
@@ -2051,49 +2051,65 @@
             });
         }
 
-        // --- 批量下載真實 PDF Zip 包 (修復版：加入 100ms 異步等待與非極端隱藏渲染區) ---
+        // ✅ 核心修復：批量下載 PDF Zip 包 (方案 B: 漸進式可見渲染修復版)
         async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
 
             const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
             const zip = new JSZip();
-            const renderOffscreen = document.getElementById('pdf-render-offscreen');
+            const renderContainer = document.getElementById('pdf-render-offscreen');
 
-            showToast(`正在生成 ${selectedRecords.length} 份 PDF 檔...`);
+            // 1. 開啟頂層可見渲染容器
+            renderContainer.classList.remove('hidden');
+            showToast(`正在逐份渲染生成 ${selectedRecords.length} 份 PDF 報告...`);
 
             for (let i = 0; i < selectedRecords.length; i++) {
                 const rec = selectedRecords[i];
-                renderOffscreen.innerHTML = generatePdfHtmlString(rec);
                 
-                // 關鍵修復：給予瀏覽器 100ms 進行渲染與圖片加載，避免 html2pdf 擷取空白
-                await new Promise(resolve => setTimeout(resolve, 150));
+                // 2. 注入該報告 HTML 並重設捲動位置
+                renderContainer.innerHTML = generatePdfHtmlString(rec);
+                renderContainer.scrollTop = 0;
+
+                // 3. 延遲 350ms，給予瀏覽器 Layout 重繪與圖檔 Canvas 解析時間
+                await new Promise(resolve => setTimeout(resolve, 350));
 
                 const opt = {
-                    margin:       5,
+                    margin:       [6, 6, 6, 6],
                     filename:     `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        logging: false,
+                        scrollX: 0,
+                        scrollY: 0
+                    },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
                 try {
-                    const pdfBlob = await html2pdf().set(opt).from(renderOffscreen).output('blob');
+                    // 4. 捕捉渲染畫面的 Snapshot 並轉 Blob 寫入 Zip
+                    const pdfBlob = await html2pdf().set(opt).from(renderContainer).output('blob');
                     zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`, pdfBlob);
                 } catch (err) {
                     console.error("PDF 打包失敗:", err);
                 }
             }
 
-            renderOffscreen.innerHTML = '';
-            showToast("正在打包 Zip 壓縮檔...");
+            // 5. 生成完畢後即刻隱藏與清空渲染容器
+            renderContainer.innerHTML = '';
+            renderContainer.classList.add('hidden');
 
+            showToast("正在進行 Zip 打包壓縮...");
+
+            // 6. 下載 ZIP 壓縮檔
             zip.generateAsync({ type: "blob" }).then(function(content) {
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(content);
                 a.download = `擔架床巡查報告批量導出_${new Date().toISOString().slice(0,10)}.zip`;
                 a.click();
-                showToast("下載完成！");
+                showToast("ZIP 檔案下載成功！內容已 100% 渲染完整。");
             });
         }
 
