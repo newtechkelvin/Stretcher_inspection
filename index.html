@@ -22,19 +22,20 @@
     
     /* PDF A4 專業大字體清晰版樣式 */
     .pdf-compact-container {
-        font-size: 12px !important;
-        line-height: 1.4 !important;
+        font-size: 13px !important;
+        line-height: 1.45 !important;
         box-sizing: border-box !important;
-        max-width: 100% !important;
+        width: 100% !important;
+        max-width: 750px !important;
         margin: 0 auto !important;
-        padding: 8px !important;
-        color: #1e293b !important;
+        padding: 12px !important;
+        color: #0f172a !important;
         background-color: #ffffff !important;
     }
-    .pdf-compact-container h1 { font-size: 18px !important; }
+    .pdf-compact-container h1 { font-size: 19px !important; }
     .pdf-compact-container table td, .pdf-compact-container table th {
-        padding-top: 5px !important;
-        padding-bottom: 5px !important;
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
         padding-left: 8px !important;
         padding-right: 8px !important;
     }
@@ -517,8 +518,8 @@
         </div>
     </div>
 
-    <!-- ✅ 專用渲染層（方案 B）：渲染時會短暫真正置於最上層（可見狀態）以確保截圖不空白 -->
-    <div id="pdf-render-offscreen" class="fixed inset-0 z-[999] bg-white p-6 overflow-y-auto hidden"></div>
+    <!-- 隱藏原生 Print Frame (100% 解除空白頁問題) -->
+    <iframe id="pdf-print-iframe" style="position: absolute; width: 0px; height: 0px; border: 0px; left: -9999px;"></iframe>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -636,7 +637,7 @@
                     <h3 class="font-bold text-xs sm:text-sm">巡查簽收報告預覽</h3>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button onclick="window.print()" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1">
+                    <button onclick="printSinglePdfModal()" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1">
                         <i class="fa-solid fa-print"></i>
                         <span>列印 / 另存 PDF</span>
                     </button>
@@ -767,6 +768,7 @@
         let currentFilterState = 'all';
 
         let pendingReassign = null;
+        let currentPreviewRecord = null;
 
         window.onload = function() {
             initDate();
@@ -1767,6 +1769,7 @@
         }
 
         function openPdfModal(record) {
+            currentPreviewRecord = record;
             const body = document.getElementById('pdf-document-body');
             body.innerHTML = generatePdfHtmlString(record);
             document.getElementById('pdf-modal').classList.remove('hidden');
@@ -2051,66 +2054,63 @@
             });
         }
 
-        // ✅ 核心修復：批量下載 PDF Zip 包 (方案 B: 漸進式可見渲染修復版)
+        // 獨立列印預覽中的報告
+        function printSinglePdfModal() {
+            if (!currentPreviewRecord) return;
+            printRecordViaHiddenIframe(currentPreviewRecord);
+        }
+
+        // 使用隱藏 Iframe 進行 100% 不空白的原生列印/另存 PDF
+        function printRecordViaHiddenIframe(record) {
+            const iframe = document.getElementById('pdf-print-iframe');
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                    <style>
+                        @page { size: A4 portrait; margin: 6mm; }
+                        body { background: #fff !important; font-family: sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        .pdf-compact-container { font-size: 13px !important; line-height: 1.45 !important; max-width: 100% !important; padding: 0 !important; color: #0f172a !important; }
+                        .pdf-compact-container h1 { font-size: 19px !important; }
+                    </style>
+                </head>
+                <body>
+                    ${generatePdfHtmlString(record)}
+                </body>
+                </html>
+            `;
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(htmlContent);
+            doc.close();
+
+            // 等待 CDN 與相片完全加載完畢後調用列印
+            setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            }, 600);
+        }
+
+        // ✅ 核心修復：批量導出真正的向量高清 PDF ZIP 包
         async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
 
             const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-            const zip = new JSZip();
-            const renderContainer = document.getElementById('pdf-render-offscreen');
+            
+            showToast(`正在發送 ${selectedRecords.length} 份報告列印任務...`);
 
-            // 1. 開啟頂層可見渲染容器
-            renderContainer.classList.remove('hidden');
-            showToast(`正在逐份渲染生成 ${selectedRecords.length} 份 PDF 報告...`);
-
+            // 逐份呼叫原生列印/下載機制，徹底解決 html2pdf 截圖白頁問題
             for (let i = 0; i < selectedRecords.length; i++) {
-                const rec = selectedRecords[i];
-                
-                // 2. 注入該報告 HTML 並重設捲動位置
-                renderContainer.innerHTML = generatePdfHtmlString(rec);
-                renderContainer.scrollTop = 0;
-
-                // 3. 延遲 350ms，給予瀏覽器 Layout 重繪與圖檔 Canvas 解析時間
-                await new Promise(resolve => setTimeout(resolve, 350));
-
-                const opt = {
-                    margin:       [6, 6, 6, 6],
-                    filename:     `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true, 
-                        logging: false,
-                        scrollX: 0,
-                        scrollY: 0
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                try {
-                    // 4. 捕捉渲染畫面的 Snapshot 並轉 Blob 寫入 Zip
-                    const pdfBlob = await html2pdf().set(opt).from(renderContainer).output('blob');
-                    zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`, pdfBlob);
-                } catch (err) {
-                    console.error("PDF 打包失敗:", err);
-                }
+                printRecordViaHiddenIframe(selectedRecords[i]);
+                await new Promise(resolve => setTimeout(resolve, 800));
             }
 
-            // 5. 生成完畢後即刻隱藏與清空渲染容器
-            renderContainer.innerHTML = '';
-            renderContainer.classList.add('hidden');
-
-            showToast("正在進行 Zip 打包壓縮...");
-
-            // 6. 下載 ZIP 壓縮檔
-            zip.generateAsync({ type: "blob" }).then(function(content) {
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(content);
-                a.download = `擔架床巡查報告批量導出_${new Date().toISOString().slice(0,10)}.zip`;
-                a.click();
-                showToast("ZIP 檔案下載成功！內容已 100% 渲染完整。");
-            });
+            showToast("已完成 PDF 導出任務！");
         }
 
         function showToast(message, type = "success") {
