@@ -2,8 +2,8 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>擔架床檢查與簽收系統 Prototype</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>擔架床檢查與簽收系統</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome CDN for Icons -->
@@ -20,10 +20,27 @@
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .canvas-container { touch-action: none; }
     
+    /* PDF A4 單頁精確對齊樣式 */
+    .pdf-compact-container {
+        font-size: 10px !important;
+        line-height: 1.25 !important;
+        box-sizing: border-box !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 4px !important;
+    }
+    .pdf-compact-container h1 { font-size: 16px !important; }
+    .pdf-compact-container table td, .pdf-compact-container table th {
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+    }
+
     @media print {
         @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 5mm;
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -55,213 +72,195 @@
             padding: 0 !important;
             overflow: visible !important;
         }
-        .pdf-compact-container {
-            font-size: 11px !important;
-            line-height: 1.3 !important;
-        }
-        .pdf-compact-container h1 { font-size: 18px !important; }
-        .pdf-compact-container table td, .pdf-compact-container table th {
-            padding-top: 4px !important;
-            padding-bottom: 4px !important;
-        }
     }
 </style>
-    
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
 
     <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 no-print">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-xl shadow">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-teal-500 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow flex-shrink-0">
                     <i class="fa-solid fa-bed-pulse"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">擔架床巡查與簽收系統</h1>
-                    <p class="text-xs text-teal-300">Stretcher Inspection & e-Signature Prototype</p>
+                    <h1 class="font-bold text-sm sm:text-lg leading-tight">擔架床巡查與簽收系統</h1>
+                    <p class="text-[10px] sm:text-xs text-teal-300">Stretcher Inspection System</p>
                 </div>
             </div>
             
-            <div class="flex items-center space-x-2">
-                <button onclick="switchTab('new-form')" id="btn-tab-form" class="px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition hover:bg-teal-700 flex items-center space-x-1">
+            <div class="flex items-center space-x-1 sm:space-x-2">
+                <button onclick="switchTab('new-form')" id="btn-tab-form" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-teal-600 text-white transition hover:bg-teal-700 flex items-center space-x-1">
                     <i class="fa-solid fa-pen-to-square"></i>
-                    <span class="hidden md:inline">新增檢查</span>
+                    <span class="hidden sm:inline">新增檢查</span>
                 </button>
-                <button onclick="openChecklistManagerModal()" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1" title="自訂檢查清單">
+                <button onclick="openChecklistManagerModal()" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1" title="自訂檢查清單">
                     <i class="fa-solid fa-list-check"></i>
-                    <span class="hidden md:inline">自訂清單</span>
+                    <span class="hidden sm:inline">自訂清單</span>
                 </button>
-                <button onclick="switchTab('history')" id="btn-tab-history" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1">
+                <button onclick="switchTab('history')" id="btn-tab-history" class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1">
                     <i class="fa-solid fa-folder-tree"></i>
-                    <span class="hidden md:inline">Drive 檔案庫</span>
+                    <span class="hidden sm:inline">Drive 檔案庫</span>
                     <span id="pending-badge" class="ml-1 bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full hidden">0</span>
-                </button>
-                <button onclick="toggleConfigModal()" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center space-x-1" title="Google Drive 設定指引">
-                    <i class="fa-solid fa-gear"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700">
-        <i id="toast-icon" class="fa-solid fa-circle-check text-teal-400 text-xl"></i>
-        <span id="toast-message" class="text-sm font-medium">提示訊息</span>
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 bg-slate-900 text-white px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700 max-w-sm">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-teal-400 text-lg sm:text-xl flex-shrink-0"></i>
+        <span id="toast-message" class="text-xs sm:text-sm font-medium">提示訊息</span>
     </div>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 no-print">
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 no-print">
 
         <!-- TAB 1: New Inspection Form -->
-        <div id="tab-new-form" class="space-y-6">
+        <div id="tab-new-form" class="space-y-4 sm:space-y-6">
             
-            <!-- Progress Stepper -->
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <!-- Progress Stepper (Mobile Optimized) -->
+            <div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200">
                 <div class="flex items-center justify-between max-w-3xl mx-auto">
-                    <div class="flex items-center space-x-2 step-indicator active" id="step-ind-1">
-                        <span class="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm">1</span>
-                        <span class="text-xs sm:text-sm font-semibold text-slate-800 hidden sm:inline">基本資料</span>
+                    <div class="flex items-center space-x-1 sm:space-x-2 step-indicator active" id="step-ind-1">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs sm:text-sm">1</span>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-800 hidden md:inline">基本資料</span>
                     </div>
-                    <div class="h-0.5 flex-1 mx-2 bg-slate-200"></div>
-                    <div class="flex items-center space-x-2 step-indicator" id="step-ind-2">
-                        <span class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm">2</span>
-                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden sm:inline">檢查清單</span>
+                    <div class="h-0.5 flex-1 mx-1 sm:mx-2 bg-slate-200"></div>
+                    <div class="flex items-center space-x-1 sm:space-x-2 step-indicator" id="step-ind-2">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs sm:text-sm">2</span>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden md:inline">檢查清單</span>
                     </div>
-                    <div class="h-0.5 flex-1 mx-2 bg-slate-200"></div>
-                    <div class="flex items-center space-x-2 step-indicator" id="step-ind-3">
-                        <span class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm">3</span>
-                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden sm:inline">現場影相</span>
+                    <div class="h-0.5 flex-1 mx-1 sm:mx-2 bg-slate-200"></div>
+                    <div class="flex items-center space-x-1 sm:space-x-2 step-indicator" id="step-ind-3">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs sm:text-sm">3</span>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden md:inline">現場影相</span>
                     </div>
-                    <div class="h-0.5 flex-1 mx-2 bg-slate-200"></div>
-                    <div class="flex items-center space-x-2 step-indicator" id="step-ind-4">
-                        <span class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm">4</span>
-                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden sm:inline">客戶簽收</span>
+                    <div class="h-0.5 flex-1 mx-1 sm:mx-2 bg-slate-200"></div>
+                    <div class="flex items-center space-x-1 sm:space-x-2 step-indicator" id="step-ind-4">
+                        <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs sm:text-sm">4</span>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-500 hidden md:inline">客戶簽收</span>
                     </div>
                 </div>
             </div>
 
             <!-- Form Container -->
-            <form id="inspection-form" onsubmit="event.preventDefault();" class="space-y-6">
+            <form id="inspection-form" onsubmit="event.preventDefault();" class="space-y-4 sm:space-y-6">
 
                 <!-- STEP 1: Basic Information -->
-                <div id="step-1" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
-                    <div class="border-b border-slate-100 pb-4 flex justify-between items-center">
+                <div id="step-1" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6">
+                    <div class="border-b border-slate-100 pb-3 flex justify-between items-center flex-wrap gap-2">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Step 1: 醫院、車牌與設備資料</h2>
-                            <p class="text-xs text-slate-500">選取醫院 ➔ 車牌號碼 ➔ 擔架床編號，或拍照自動辨識標籤</p>
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 1: 醫院、車牌與設備資料</h2>
+                            <p class="text-[11px] sm:text-xs text-slate-500">選取醫院 ➔ 車牌號碼 ➔ 擔架床編號</p>
                         </div>
-                        <span class="bg-teal-50 text-teal-700 text-xs px-3 py-1 rounded-full font-medium">表單編號 #<span id="form-ref-no">NT-INS-26-00001</span></span>
+                        <span class="bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-full font-medium">#<span id="form-ref-no">NT-INS-26-00001</span></span>
                     </div>
 
                     <!-- OCR Label Scanner Banner -->
-                    <div class="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                    <div class="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-lg border border-teal-500/30">
+                            <div class="w-9 h-9 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-base border border-teal-500/30 flex-shrink-0">
                                 <i class="fa-solid fa-camera"></i>
                             </div>
                             <div>
-                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                                    <span>擔架床銘牌 Label 相片智能辨識 (OCR)</span>
-                                    <span class="bg-teal-500 text-slate-950 text-[10px] px-2 py-0.5 rounded font-black">AI 識別</span>
+                                <h3 class="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                                    <span>擔架床銘牌 Label 智能辨識</span>
+                                    <span class="bg-teal-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded font-black">AI 識別</span>
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-0.5">影下床頭標籤（如 "26NG0903162"），自動帶出對應醫院、車牌及床號</p>
+                                <p class="text-[10px] sm:text-xs text-slate-400 mt-0.5">影下床頭標籤（如 "26NG0903162"），自動帶出對應床號</p>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2 w-full md:w-auto">
                             <input type="file" id="label-ocr-file" accept="image/*" capture="environment" onchange="processLabelOCR(event)" class="hidden">
-                            <button type="button" onclick="document.getElementById('label-ocr-file').click()" class="w-full md:w-auto px-5 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg transition flex items-center justify-center space-x-1.5 shadow">
+                            <button type="button" onclick="document.getElementById('label-ocr-file').click()" class="w-full md:w-auto px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-lg transition flex items-center justify-center space-x-1.5 shadow">
                                 <i class="fa-solid fa-expand"></i>
                                 <span>拍照辨識銘牌</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         <!-- 1. Hospital Selection -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">1. 目標醫院 / 機構名稱 <span class="text-red-500">*</span></label>
-                            <select id="hospital-select" onchange="handleHospitalChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
-                                <!-- Populated dynamically -->
+                            <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">1. 目標醫院 / 機構名稱 <span class="text-red-500">*</span></label>
+                            <select id="hospital-select" onchange="handleHospitalChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm">
                             </select>
-                            <input type="text" id="hospital-custom" placeholder="請輸入自訂醫院名稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                            <input type="text" id="hospital-custom" placeholder="請輸入自訂醫院名稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm outline-none">
                         </div>
 
                         <!-- 2. Vehicle License Plate Selection -->
                         <div>
                             <div class="flex justify-between items-center mb-1">
-                                <label class="block text-sm font-medium text-slate-700">2. 車牌號碼 <span class="text-red-500">*</span></label>
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700">2. 車牌號碼 <span class="text-red-500">*</span></label>
                                 <button type="button" onclick="promptAddNewVehicle()" class="text-xs text-teal-600 hover:underline font-semibold flex items-center gap-1">
                                     <i class="fa-solid fa-plus text-[10px]"></i> 新增車牌
                                 </button>
                             </div>
-                            <select id="vehicle-select" onchange="handleVehicleChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm font-mono font-bold text-slate-800">
-                                <!-- Populated dynamically -->
+                            <select id="vehicle-select" onchange="handleVehicleChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm font-mono font-bold text-slate-800">
                             </select>
                         </div>
 
                         <!-- 3. Stretcher Serial Number Selection -->
                         <div>
                             <div class="flex justify-between items-center mb-1">
-                                <label class="block text-sm font-medium text-slate-700">3. 擔架床編號 (SN#) <span class="text-red-500">*</span></label>
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700">3. 擔架床編號 (SN#) <span class="text-red-500">*</span></label>
                                 <button type="button" onclick="promptAddNewStretcher()" class="text-xs text-teal-600 hover:underline font-semibold flex items-center gap-1">
                                     <i class="fa-solid fa-plus text-[10px]"></i> 新增床號
                                 </button>
                             </div>
                             <div class="relative">
-                                <input type="text" id="stretcher-id" onchange="handleStretcherInputChange(this.value)" placeholder="例: 26NG0903162" class="w-full rounded-xl border border-slate-300 pl-4 pr-10 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none uppercase font-mono font-bold text-sm">
-                                <i class="fa-solid fa-barcode absolute right-3 top-3 text-slate-400"></i>
+                                <input type="text" id="stretcher-id" onchange="handleStretcherInputChange(this.value)" placeholder="例: 26NG0903162" class="w-full rounded-xl border border-slate-300 pl-3 pr-8 py-2 sm:pl-4 sm:pr-10 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none uppercase font-mono font-bold text-xs sm:text-sm">
+                                <i class="fa-solid fa-barcode absolute right-3 top-2.5 text-slate-400"></i>
                             </div>
-                            <select id="preset-sn-select" onchange="handleStretcherSelectChange(this.value)" class="mt-2 w-full rounded-xl border border-teal-200 bg-teal-50 text-teal-900 px-3 py-1.5 text-xs font-mono font-semibold focus:outline-none">
-                                <!-- Populated dynamically -->
+                            <select id="preset-sn-select" onchange="handleStretcherSelectChange(this.value)" class="mt-2 w-full rounded-xl border border-teal-200 bg-teal-50 text-teal-900 px-2.5 py-1.5 text-xs font-mono font-semibold focus:outline-none">
                             </select>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-100">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2 border-t border-slate-100">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">巡查人員 (工程/外勤) <span class="text-red-500">*</span></label>
-                            <input type="text" id="inspector-name" value="Chris Chong" placeholder="請輸入姓名" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                            <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">巡查人員 (工程/外勤) <span class="text-red-500">*</span></label>
+                            <input type="text" id="inspector-name" value="Chris Chong" placeholder="請輸入姓名" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">檢查日期與時間</label>
-                            <input type="datetime-local" id="inspection-date" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                            <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">檢查日期與時間</label>
+                            <input type="datetime-local" id="inspection-date" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm">
                         </div>
                     </div>
 
-                    <div class="flex justify-end pt-4">
-                        <button type="button" onclick="goToStep(2)" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow-md transition flex items-center space-x-2">
+                    <div class="flex justify-end pt-2">
+                        <button type="button" onclick="goToStep(2)" class="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow transition flex items-center justify-center space-x-2">
                             <span>下一步：檢查清單</span>
                             <i class="fa-solid fa-arrow-right text-xs"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- STEP 2: Inspection Checklist -->
-                <div id="step-2" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
-                    <div class="border-b border-slate-100 pb-4 flex flex-wrap justify-between items-center gap-2">
+                <!-- STEP 2: Inspection Checklist (Mobile Friendly Grid) -->
+                <div id="step-2" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6 hidden">
+                    <div class="border-b border-slate-100 pb-3 flex flex-wrap justify-between items-center gap-2">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-900">Step 2: 擔架床詳細檢查項目</h2>
-                            <p class="text-xs text-slate-500">請逐項點檢部件狀態，如有異常請標記</p>
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 2: 擔架床詳細檢查項目</h2>
+                            <p class="text-[11px] sm:text-xs text-slate-500">請逐項點檢部件狀態</p>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button type="button" onclick="openChecklistManagerModal()" class="text-xs bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold px-3 py-1.5 rounded-lg transition border border-teal-200 flex items-center space-x-1">
+                            <button type="button" onclick="openChecklistManagerModal()" class="text-xs bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold px-2.5 py-1.5 rounded-lg transition border border-teal-200 flex items-center space-x-1">
                                 <i class="fa-solid fa-gear"></i>
                                 <span>自訂項目</span>
                             </button>
-                            <button type="button" onclick="setAllChecklistPass()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition">
+                            <button type="button" onclick="setAllChecklistPass()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg transition">
                                 <i class="fa-solid fa-check-double mr-1"></i>全選「正常」
                             </button>
                         </div>
                     </div>
 
-                    <div class="space-y-4" id="checklist-container">
-                        <!-- Checklist categories inserted dynamically via JavaScript -->
-                    </div>
+                    <div class="space-y-4" id="checklist-container"></div>
 
-                    <div class="flex justify-between pt-4">
-                        <button type="button" onclick="goToStep(1)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+                    <div class="flex justify-between pt-2 gap-2">
+                        <button type="button" onclick="goToStep(1)" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition text-xs sm:text-sm">
                             <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
                         </button>
-                        <button type="button" onclick="goToStep(3)" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow-md transition flex items-center space-x-2">
+                        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow transition flex items-center space-x-1.5 text-xs sm:text-sm">
                             <span>下一步：現場影相</span>
                             <i class="fa-solid fa-arrow-right text-xs"></i>
                         </button>
@@ -269,45 +268,44 @@
                 </div>
 
                 <!-- STEP 3: Photo Upload -->
-                <div id="step-3" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
-                    <div class="border-b border-slate-100 pb-4">
-                        <h2 class="text-lg font-bold text-slate-900">Step 3: 現場相片記錄</h2>
-                        <p class="text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片（系統會自動對圖片進行智慧壓縮，加快上傳效率）</p>
+                <div id="step-3" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6 hidden">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 3: 現場相片記錄</h2>
+                        <p class="text-[11px] sm:text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片（自動智慧壓縮）</p>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <div class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-teal-500 transition bg-slate-50 relative cursor-pointer" onclick="document.getElementById('photo-input').click()">
-                                <i class="fa-solid fa-camera-retro text-4xl text-slate-400 mb-2"></i>
-                                <p class="text-sm font-semibold text-slate-700">按下啟動相機 / 上傳相片</p>
-                                <p class="text-xs text-teal-600 font-medium mt-1">✓ 自動進行 1200px 輕量化高畫質壓縮</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="space-y-3">
+                            <div class="border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center hover:border-teal-500 transition bg-slate-50 relative cursor-pointer" onclick="document.getElementById('photo-input').click()">
+                                <i class="fa-solid fa-camera-retro text-3xl sm:text-4xl text-slate-400 mb-2"></i>
+                                <p class="text-xs sm:text-sm font-semibold text-slate-700">按下啟動相機 / 上傳相片</p>
+                                <p class="text-[10px] sm:text-xs text-teal-600 font-medium mt-0.5">✓ 輕量化高畫質壓縮</p>
                                 <input type="file" id="photo-input" accept="image/*" capture="environment" multiple onchange="handlePhotoUpload(event)" class="hidden">
                             </div>
 
-                            <button type="button" onclick="addSamplePhoto()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition flex items-center justify-center space-x-2">
+                            <button type="button" onclick="addSamplePhoto()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition flex items-center justify-center space-x-1.5">
                                 <i class="fa-solid fa-vial"></i>
                                 <span>載入模擬損壞相片 (Demo 測試用)</span>
                             </button>
                         </div>
 
                         <div>
-                            <h3 class="text-sm font-bold text-slate-700 mb-2 flex items-center justify-between">
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-700 mb-2 flex items-center justify-between">
                                 <span>已拍攝相片 (<span id="photo-count">0</span>)</span>
-                                <span class="text-xs text-slate-400 font-normal">可輸入備註標籤</span>
                             </h3>
-                            <div id="photo-preview-grid" class="grid grid-cols-1 gap-3 max-h-72 overflow-y-auto pr-1">
-                                <p id="no-photos-msg" class="text-xs text-slate-400 italic py-8 text-center bg-slate-50 rounded-xl border border-slate-100">
-                                    暫未上傳相片。建議拍攝損壞細節、床號貼紙或整體外觀。
+                            <div id="photo-preview-grid" class="grid grid-cols-1 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                                <p id="no-photos-msg" class="text-xs text-slate-400 italic py-6 text-center bg-slate-50 rounded-xl border border-slate-100">
+                                    暫未上傳相片。
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex justify-between pt-4">
-                        <button type="button" onclick="goToStep(2)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+                    <div class="flex justify-between pt-2 gap-2">
+                        <button type="button" onclick="goToStep(2)" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition text-xs sm:text-sm">
                             <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
                         </button>
-                        <button type="button" onclick="goToStep(4)" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow-md transition flex items-center space-x-2">
+                        <button type="button" onclick="goToStep(4)" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow transition flex items-center space-x-1.5 text-xs sm:text-sm">
                             <span>下一步：客戶電子簽收</span>
                             <i class="fa-solid fa-arrow-right text-xs"></i>
                         </button>
@@ -315,66 +313,66 @@
                 </div>
 
                 <!-- STEP 4: Client Signature -->
-                <div id="step-4" class="step-content bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 hidden">
-                    <div class="border-b border-slate-100 pb-4">
-                        <h2 class="text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
-                        <p class="text-xs text-slate-500">可即時請客戶簽收，或先「暫存報告」等檢查完多張床後一併集中簽收</p>
+                <div id="step-4" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6 hidden">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 4: 醫院負責人 / 客戶簽收</h2>
+                        <p class="text-[11px] sm:text-xs text-slate-500">即時簽收或暫存待集中簽名</p>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="space-y-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="space-y-3 sm:space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名</label>
-                                <input type="text" id="signer-name" placeholder="可留空待集中簽署時填寫" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">客戶 / 驗收人員姓名</label>
+                                <input type="text" id="signer-name" placeholder="可留空待集中簽署時填寫" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm">
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
-                                <select id="signer-dept-select" onchange="handleDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">所屬部門 / 職稱</label>
+                                <select id="signer-dept-select" onchange="handleDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 sm:px-4 sm:py-2.5 focus:ring-2 focus:ring-teal-500 outline-none text-xs sm:text-sm">
                                     <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
                                     <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
                                     <option value="custom">其他</option>
                                 </select>
-                                <input type="text" id="signer-dept-custom" placeholder="請輸入自訂部門 / 職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm">
+                                <input type="text" id="signer-dept-custom" placeholder="請輸入自訂部門 / 職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm outline-none">
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
-                                <textarea id="inspection-notes" rows="3" placeholder="如有需跟進事項、損壞位置或零件更換建議，請於此註明..." class="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition outline-none text-sm"></textarea>
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700 mb-1">巡查備註 / 需跟進維修說明</label>
+                                <textarea id="inspection-notes" rows="2" placeholder="如有需跟進事項，請於此註明..." class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm outline-none"></textarea>
                             </div>
                         </div>
 
-                        <div class="space-y-2">
+                        <div class="space-y-1.5">
                             <div class="flex justify-between items-center">
-                                <label class="block text-sm font-medium text-slate-700">客戶電子簽名</label>
+                                <label class="block text-xs sm:text-sm font-medium text-slate-700">客戶電子簽名</label>
                                 <button type="button" onclick="clearSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">
                                     <i class="fa-solid fa-rotate-left mr-1"></i>重新簽名
                                 </button>
                             </div>
-                            <div class="relative w-full h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
+                            <div class="relative w-full h-40 sm:h-48 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden cursor-crosshair canvas-container">
                                 <canvas id="signature-pad" class="w-full h-full block"></canvas>
                                 <div id="sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs font-medium">
-                                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此區域手寫簽署（暫存模式可略過）
+                                    <i class="fa-solid fa-signature mr-2 text-base"></i>請在此手寫簽署
                                 </div>
                             </div>
-                            <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
-                                本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
+                            <p class="text-[10px] sm:text-[11px] text-slate-500 leading-tight pt-1">
+                                本人（授權代表）確認已完成上述擔架床之檢查，並確認該擔架床處於良好及正常運作狀態。
                             </p>
                         </div>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" onclick="goToStep(3)" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition">
+                    <div class="flex flex-col sm:flex-row justify-between gap-2.5 pt-3 border-t border-slate-100">
+                        <button type="button" onclick="goToStep(3)" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl transition text-xs sm:text-sm">
                             <i class="fa-solid fa-arrow-left text-xs mr-1"></i> 上一步
                         </button>
                         <div class="flex flex-wrap gap-2 justify-end">
-                            <button type="button" onclick="saveAsPendingInspection()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl shadow transition flex items-center space-x-1.5">
+                            <button type="button" onclick="saveAsPendingInspection()" class="flex-1 sm:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl shadow transition text-xs sm:text-sm flex items-center justify-center space-x-1">
                                 <i class="fa-solid fa-clock"></i>
                                 <span>暫存待集中簽名</span>
                             </button>
-                            <button type="button" onclick="submitInspectionForm()" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
+                            <button type="button" onclick="submitInspectionForm()" class="flex-1 sm:flex-none px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition text-xs sm:text-sm flex items-center justify-center space-x-1.5">
                                 <i class="fa-solid fa-cloud-arrow-up"></i>
-                                <span>即時簽收並同步 Drive</span>
+                                <span>即時簽收並同步</span>
                             </button>
                         </div>
                     </div>
@@ -383,86 +381,82 @@
         </div>
 
         <!-- TAB 2: History & Google Drive Archive -->
-        <div id="tab-history" class="space-y-6 hidden">
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+        <div id="tab-history" class="space-y-4 sm:space-y-6 hidden">
+            <div class="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">巡查歷史紀錄與 Google Drive 歸檔庫</h2>
-                        <p class="text-xs text-slate-500">管理、集中簽署待處理報告，或批量導出 PDF 報告及 Email 寄送</p>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900">巡查歷史紀錄與 Drive 檔案庫</h2>
+                        <p class="text-[11px] sm:text-xs text-slate-500">管理、集中簽署或批量導出 PDF 報告</p>
                     </div>
-                    <button onclick="switchTab('new-form')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
+                    <button onclick="switchTab('new-form')" class="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
                         <i class="fa-solid fa-plus"></i>
                         <span>新增巡查</span>
                     </button>
                 </div>
 
                 <!-- 狀態過濾選項卡 -->
-                <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 text-xs font-semibold">
-                    <button onclick="filterHistoryTab('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white transition">
+                <div class="flex items-center space-x-1.5 border-b border-slate-200 pb-2 text-xs font-semibold overflow-x-auto">
+                    <button onclick="filterHistoryTab('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white transition whitespace-nowrap">
                         全部報告
                     </button>
-                    <button onclick="filterHistoryTab('pending')" id="filter-btn-pending" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition flex items-center gap-1">
-                        <span>待客戶簽名 ⏳</span>
+                    <button onclick="filterHistoryTab('pending')" id="filter-btn-pending" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition flex items-center gap-1 whitespace-nowrap">
+                        <span>待簽名 ⏳</span>
                         <span id="pending-filter-count" class="bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full hidden">0</span>
                     </button>
-                    <button onclick="filterHistoryTab('signed')" id="filter-btn-signed" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">
-                        已簽收完成 ✓
+                    <button onclick="filterHistoryTab('signed')" id="filter-btn-signed" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition whitespace-nowrap">
+                        已簽收 ✓
                     </button>
                 </div>
 
-                <!-- 批量操作工具列 (Batch Actions Bar) -->
-                <div id="batch-action-bar" class="bg-teal-900 text-white p-3 rounded-xl flex flex-wrap justify-between items-center gap-3 hidden">
+                <!-- 批量操作工具列 -->
+                <div id="batch-action-bar" class="bg-teal-900 text-white p-3 rounded-xl flex flex-wrap justify-between items-center gap-2 hidden">
                     <div class="flex items-center space-x-2 text-xs">
-                        <i class="fa-solid fa-square-check text-teal-400 text-base"></i>
-                        <span>已選取 <strong id="selected-count" class="text-teal-300 font-bold text-sm">0</strong> 份項目</span>
+                        <i class="fa-solid fa-square-check text-teal-400 text-sm"></i>
+                        <span>已選取 <strong id="selected-count" class="text-teal-300 font-bold">0</strong> 份</span>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button id="btn-batch-sign" onclick="openBatchSignModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button id="btn-batch-sign" onclick="openBatchSignModal()" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1">
                             <i class="fa-solid fa-file-signature"></i>
-                            <span>批量集中簽名</span>
+                            <span>批量簽名</span>
                         </button>
-                        <button onclick="batchDownloadPdfs()" class="px-3 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
+                        <button onclick="batchDownloadPdfs()" class="px-2.5 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center gap-1">
                             <i class="fa-solid fa-file-arrow-down"></i>
-                            <span>批量導出 PDF Zip</span>
-                        </button>
-                        <button onclick="openBatchEmailModal()" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 shadow">
-                            <i class="fa-solid fa-envelope"></i>
-                            <span>批量 Email 寄送</span>
+                            <span>導出 PDF Zip</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Records Table -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
-                                <th class="p-3 w-10">
-                                    <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllRecords(this.checked)" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
-                                </th>
-                                <th class="p-3">報告編號 / 日期</th>
-                                <th class="p-3">目標醫院</th>
-                                <th class="p-3">車牌號碼</th>
-                                <th class="p-3">床號 (SN#)</th>
-                                <th class="p-3">簽署狀態</th>
-                                <th class="p-3">相片</th>
-                                <th class="p-3 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs">
-                            <!-- Dynamically populated -->
-                        </tbody>
-                    </table>
+                <!-- Records Table (Mobile responsive wrapper) -->
+                <div class="overflow-x-auto -mx-4 sm:mx-0">
+                    <div class="inline-block min-w-full align-middle">
+                        <table class="min-w-full text-left text-xs sm:text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-2.5 w-8 text-center">
+                                        <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllRecords(this.checked)" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
+                                    </th>
+                                    <th class="p-2.5">編號 / 日期</th>
+                                    <th class="p-2.5">目標醫院</th>
+                                    <th class="p-2.5">車牌</th>
+                                    <th class="p-2.5">床號 (SN#)</th>
+                                    <th class="p-2.5">簽署狀態</th>
+                                    <th class="p-2.5">相片</th>
+                                    <th class="p-2.5 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-slate-100 text-xs">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <!-- Drive Hierarchy Simulation -->
-                <div class="mt-8 bg-slate-900 text-slate-200 p-5 rounded-xl font-mono text-xs space-y-2">
-                    <div class="flex items-center space-x-2 text-teal-400 font-bold mb-2">
+                <!-- Drive Tree Simulation -->
+                <div class="mt-6 bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs space-y-2">
+                    <div class="flex items-center space-x-2 text-teal-400 font-bold mb-1">
                         <i class="fa-brands fa-google-drive"></i>
-                        <span>Google Drive 雲端資料夾樹狀目錄模擬：</span>
+                        <span>Google Drive 目錄模擬：</span>
                     </div>
-                    <div id="drive-folder-tree" class="space-y-1 overflow-x-auto max-h-60">
-                        <!-- Dynamic folder tree -->
+                    <div id="drive-folder-tree" class="space-y-1 overflow-x-auto max-h-48 text-[11px]">
                     </div>
                 </div>
             </div>
@@ -471,35 +465,35 @@
     </main>
 
     <!-- 批量集中簽名 Modal -->
-    <div id="batch-sign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl border border-slate-200">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+    <div id="batch-sign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
                 <div class="flex items-center space-x-2 text-teal-700">
-                    <i class="fa-solid fa-file-signature text-xl"></i>
-                    <h3 class="font-bold text-base text-slate-900">批量集中電子簽名確認</h3>
+                    <i class="fa-solid fa-file-signature text-lg"></i>
+                    <h3 class="font-bold text-sm sm:text-base text-slate-900">批量集中電子簽名確認</h3>
                 </div>
                 <button onclick="closeBatchSignModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
 
-            <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900">
-                將為以下選取的 <strong id="batch-sign-count" class="text-amber-700 font-bold">0</strong> 份待處理報告寫入相同的簽名確認：
-                <div id="batch-sign-list-preview" class="mt-1.5 flex flex-wrap gap-1 font-mono text-[11px] text-slate-700"></div>
+            <div class="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-xs text-amber-900">
+                將為選取的 <strong id="batch-sign-count" class="text-amber-700 font-bold">0</strong> 份報告寫入相同的簽名：
+                <div id="batch-sign-list-preview" class="mt-1 flex flex-wrap gap-1 font-mono text-[10px] text-slate-700"></div>
             </div>
 
-            <div class="space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">客戶 / 驗收代表姓名 <span class="text-red-500">*</span></label>
-                        <input type="text" id="batch-signer-name" placeholder="例: 陳主管" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                        <input type="text" id="batch-signer-name" placeholder="例: 陳主管" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">所屬部門 / 職稱</label>
-                        <select id="batch-signer-dept-select" onchange="handleBatchDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                        <select id="batch-signer-dept-select" onchange="handleBatchDeptSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
                             <option value="非緊急服務 - 管工">非緊急服務 - 管工</option>
                             <option value="非緊急服務 - 司機">非緊急服務 - 司機</option>
                             <option value="custom">其他</option>
                         </select>
-                        <input type="text" id="batch-signer-dept-custom" placeholder="請輸入自訂職稱" class="mt-2 hidden w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                        <input type="text" id="batch-signer-dept-custom" placeholder="請輸入自訂職稱" class="mt-1.5 hidden w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs outline-none">
                     </div>
                 </div>
 
@@ -508,158 +502,108 @@
                         <label class="block text-xs font-bold text-slate-700">客戶電子簽名 <span class="text-red-500">*</span></label>
                         <button type="button" onclick="clearBatchSignature()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">重新簽名</button>
                     </div>
-                    <div class="relative w-full h-40 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 cursor-crosshair">
+                    <div class="relative w-full h-36 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 cursor-crosshair">
                         <canvas id="batch-signature-pad" class="w-full h-full block"></canvas>
                     </div>
-                    <p class="text-[11px] text-slate-500 leading-relaxed pt-1">
-                        本人（授權代表）確認已完成上述擔架床之檢查，並滿意檢查結果。本人確認該擔架床於簽署當刻處於良好及正常運作狀態。
-                    </p>
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-3 pt-2 border-t border-slate-100">
-                <button type="button" onclick="closeBatchSignModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
-                <button type="button" onclick="confirmBatchSign()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition">確認批量簽署並同步</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 批量 Email 寄送 Modal -->
-    <div id="batch-email-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2 text-blue-600">
-                    <i class="fa-solid fa-envelope text-xl"></i>
-                    <h3 class="font-bold text-base text-slate-900">批量 Email 電子郵件寄送</h3>
-                </div>
-                <button onclick="closeBatchEmailModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">收件人 Email 電郵地址 <span class="text-red-500">*</span></label>
-                    <input type="email" id="batch-email-target" placeholder="example@hospital.org.hk" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">電郵主題</label>
-                    <input type="text" id="batch-email-subject" value="擔架床檢查與維修報告簽收紀錄" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">電郵補充訊息</label>
-                    <textarea id="batch-email-body" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">閣下好，附件為已完成點檢之擔架床檢查報告，請查收。</textarea>
-                </div>
-                <div class="p-2.5 bg-blue-50 rounded-xl border border-blue-200 text-[11px] text-blue-800 leading-relaxed">
-                    <i class="fa-solid fa-circle-info mr-1"></i>
-                    點擊「喚起郵件 App 寄送」後，系統會自動下載選取的 PDF 報告 Zip 包，並開啟手機預設郵件 App（如 Gmail / Mail）。
-                </div>
-            </div>
-
-            <div class="flex justify-end space-x-3 pt-2 border-t border-slate-100">
-                <button type="button" onclick="closeBatchEmailModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
-                <button type="button" onclick="sendBatchEmail()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition">喚起郵件 App 寄送</button>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeBatchSignModal()" class="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">取消</button>
+                <button type="button" onclick="confirmBatchSign()" class="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition">確認批量簽署</button>
             </div>
         </div>
     </div>
 
     <!-- Hidden Container for Off-screen PDF Rendering -->
-    <div id="pdf-render-offscreen" class="fixed left-[-9999px] top-[-9999px] w-[800px] bg-white p-8"></div>
+    <div id="pdf-render-offscreen" class="fixed left-[-9999px] top-[-9999px] w-[790px] bg-white p-4"></div>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-amber-200">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-amber-200">
             <div class="flex items-center space-x-3 text-amber-600">
-                <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-xl flex-shrink-0">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-lg flex-shrink-0">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-base text-slate-900">擔架床所屬車輛異動提示</h3>
-                    <p class="text-xs text-amber-700 font-medium">檢測到此擔架床原本屬於另一台車輛</p>
+                    <h3 class="font-bold text-sm sm:text-base text-slate-900">擔架床歸屬車輛異動</h3>
+                    <p class="text-xs text-amber-700 font-medium">此床號原本屬於另一台車輛</p>
                 </div>
             </div>
 
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs text-slate-700">
                 <div class="flex justify-between">
                     <span class="text-slate-500">擔架床編號：</span>
-                    <span id="reassign-sn" class="font-bold font-mono text-teal-700">26NG0903162</span>
+                    <span id="reassign-sn" class="font-bold font-mono text-teal-700"></span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-slate-500">原屬車輛/醫院：</span>
-                    <span id="reassign-old-loc" class="font-bold text-slate-800">AM-1234 (瑪麗醫院)</span>
+                    <span id="reassign-old-loc" class="font-bold text-slate-800"></span>
                 </div>
-                <div class="flex justify-between border-t border-slate-200 pt-2">
+                <div class="flex justify-between border-t border-slate-200 pt-1.5">
                     <span class="text-slate-500">新調配車輛/醫院：</span>
-                    <span id="reassign-new-loc" class="font-bold text-rose-600">AM-5678 (瑪麗醫院)</span>
+                    <span id="reassign-new-loc" class="font-bold text-rose-600"></span>
                 </div>
             </div>
 
-            <p class="text-xs text-slate-500 leading-relaxed">
-                確定要將此擔架床的歸屬車輛更新至現時選取之車輛嗎？更新後，此床號將自動綁定至新車牌。
-            </p>
-
-            <div class="flex justify-end space-x-3 pt-2">
-                <button type="button" onclick="cancelReassignment()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">
-                    取消變更
-                </button>
-                <button type="button" onclick="confirmReassignment()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition">
-                    確定更新綁定
-                </button>
+            <div class="flex justify-end space-x-2 pt-1">
+                <button type="button" onclick="cancelReassignment()" class="px-3.5 py-1.5 bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">取消</button>
+                <button type="button" onclick="confirmReassignment()" class="px-4 py-1.5 bg-teal-600 text-white font-bold text-xs rounded-xl shadow">確定更新綁定</button>
             </div>
         </div>
     </div>
 
     <!-- OCR Scanning Loading Modal -->
     <div id="ocr-loading-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-200">
-            <div class="w-14 h-14 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-2xl animate-spin">
+        <div class="bg-white rounded-2xl p-5 max-w-xs w-full text-center space-y-3 shadow-2xl border border-slate-200">
+            <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-xl animate-spin">
                 <i class="fa-solid fa-spinner"></i>
             </div>
             <div>
-                <h3 class="font-bold text-base text-slate-900">AI 銘牌相片辨識中...</h3>
-                <p id="ocr-status-text" class="text-xs text-slate-500 mt-1">正在分析圖片中的 SN 號碼...</p>
+                <h3 class="font-bold text-sm text-slate-900">AI 銘牌相片辨識中...</h3>
+                <p id="ocr-status-text" class="text-xs text-slate-500 mt-1">分析 SN 號碼...</p>
             </div>
             <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                 <div id="ocr-progress-bar" class="bg-teal-600 h-2 rounded-full transition-all duration-200 w-1/3"></div>
             </div>
-            <p class="text-[11px] text-slate-400">尋找以 "2" 開頭的 10-11 位擔架床編號...</p>
         </div>
     </div>
 
     <!-- Checklist Manager Modal -->
-    <div id="checklist-manager-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div id="checklist-manager-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+            <div class="bg-slate-900 text-white px-4 sm:px-6 py-3 flex justify-between items-center">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-list-check text-teal-400"></i>
-                    <h3 class="font-bold text-base">自訂檢查清單項目</h3>
+                    <h3 class="font-bold text-sm sm:text-base">自訂檢查清單項目 (全裝置同步)</h3>
                 </div>
                 <button onclick="closeChecklistManagerModal()" class="text-slate-400 hover:text-white text-lg">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <div class="p-6 overflow-y-auto flex-1 space-y-6">
-                <div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-800">
-                    <span>提示：在此修改、新增或刪除的項目，會即時更新並儲存至你的瀏覽器中。</span>
-                    <button onclick="resetChecklistToDefault()" class="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 font-bold rounded-lg transition text-amber-900 flex-shrink-0">
-                        重設為預設
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+                <div class="flex justify-between items-center bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-xs text-amber-800">
+                    <span>此處的修改會同步儲存至 Google 雲端，供所有裝置共享。</span>
+                    <button onclick="resetChecklistToDefault()" class="px-2 py-1 bg-amber-200 hover:bg-amber-300 font-bold rounded-lg text-amber-900 flex-shrink-0">
+                        重設預設
                     </button>
                 </div>
 
-                <!-- Add Category Form -->
                 <div class="flex space-x-2">
-                    <input type="text" id="new-category-name" placeholder="新增分類名稱 (例: 5. 附屬電子儀器)" class="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none">
-                    <button onclick="addNewCategory()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
+                    <input type="text" id="new-category-name" placeholder="新增分類名稱 (例: 5. 電子組件)" class="flex-1 rounded-xl border border-slate-300 px-3 py-1.5 text-xs outline-none">
+                    <button onclick="addNewCategory()" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-xl transition flex items-center space-x-1">
                         <i class="fa-solid fa-plus"></i>
                         <span>新增分類</span>
                     </button>
                 </div>
 
-                <div id="checklist-editor-tree" class="space-y-4"></div>
+                <div id="checklist-editor-tree" class="space-y-3"></div>
             </div>
 
-            <div class="bg-slate-50 border-t border-slate-200 px-6 py-3 flex justify-end space-x-2">
-                <button onclick="closeChecklistManagerModal()" class="px-5 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition">
-                    完成並套用
+            <div class="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 py-3 flex justify-end">
+                <button onclick="closeChecklistManagerModal()" class="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl shadow">
+                    儲存並同步雲端
                 </button>
             </div>
         </div>
@@ -667,76 +611,45 @@
 
     <!-- Sync Loading Overlay -->
     <div id="sync-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl border border-slate-200">
-            <div class="w-16 h-16 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-2xl animate-pulse">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-200">
+            <div class="w-14 h-14 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center mx-auto text-xl animate-pulse">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <div>
-                <h3 class="font-bold text-lg text-slate-900">正在處理數據並同步至 Drive</h3>
-                <p id="sync-status-text" class="text-xs text-slate-500 mt-1">正在連接 Google Drive API...</p>
+                <h3 class="font-bold text-base text-slate-900">正在同步至 Google Drive</h3>
+                <p id="sync-status-text" class="text-xs text-slate-500 mt-1">請稍候...</p>
             </div>
-            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                <div id="sync-progress-bar" class="bg-teal-600 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div id="sync-progress-bar" class="bg-teal-600 h-2 rounded-full transition-all duration-300 w-0"></div>
             </div>
-            <p class="text-[11px] text-slate-400">正在上傳高清現場照片、電子簽名檔及更新試算表...</p>
         </div>
     </div>
 
     <!-- PDF Report Preview Modal -->
-    <div id="pdf-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center no-print">
+    <div id="pdf-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center no-print">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-file-pdf text-teal-400"></i>
-                    <h3 class="font-bold text-sm">巡查簽收報告預覽</h3>
+                    <h3 class="font-bold text-xs sm:text-sm">巡查簽收報告預覽</h3>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button onclick="window.print()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1">
+                    <button onclick="window.print()" class="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1">
                         <i class="fa-solid fa-print"></i>
                         <span>列印 / 另存 PDF</span>
                     </button>
-                    <button onclick="closePdfModal()" class="text-slate-400 hover:text-white p-1 text-lg">
+                    <button onclick="closePdfModal()" class="text-slate-400 hover:text-white p-1 text-base">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             </div>
-            <div id="pdf-document-body" class="p-6 md:p-10 overflow-y-auto flex-1 bg-white">
-                <!-- PDF body rendered dynamically -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Google Drive Config Modal -->
-    <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-gear text-teal-400"></i>
-                    <h3 class="font-bold text-base">Google Apps Script (GAS) 部署指引</h3>
-                </div>
-                <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-white text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs text-slate-600 leading-relaxed">
-                <p class="font-semibold text-slate-800 text-sm">如何連接真實 Google Drive？</p>
-                <ol class="list-decimal list-inside space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <li>在 Google Drive 建立一個放照片與試算表的主資料夾。</li>
-                    <li>新增 Google Sheets，點擊「擴充功能」➔「Apps Script」。</li>
-                    <li>貼上後端指令碼並部署為「網頁應用程式 (Web App)」，存取權限設為「所有人 (Anyone)」。</li>
-                    <li>取得 Web App URL 後，在程式碼內的 <code class="bg-slate-200 px-1 py-0.5 rounded font-mono text-teal-700">GAS_URL</code> 替換為你的實際網址即可！</li>
-                </ol>
-            </div>
-            <div class="bg-slate-50 border-t border-slate-200 px-6 py-3 flex justify-end">
-                <button onclick="toggleConfigModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition">
-                    知道了
-                </button>
+            <div id="pdf-document-body" class="p-3 sm:p-6 overflow-y-auto flex-1 bg-white">
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwkaqqQ0vuz_6nquwj-P9pRMdOjZ9Vk6SjTgVpdoh6_AgwBtZO-R9_fw2KYn-896Inr/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzVpLN6ThPh0OSUkZTukLN0VqUxYM6OuJ3458w82FiXcXKIohpBrTSFIAGMPR8DeEYC/exec";
 
         const initialDataMap = {
             "港島東 (HKEC - PYN) - 東區尤德醫院":{
@@ -812,34 +725,34 @@
 
         const defaultChecklistCategories = [
             {
-                category: "1. 輪軸及煞車系統 (Wheel & Brake System)",
+                category: "1. 輪軸及煞車系統 (Wheel & Brake)",
                 items: [
-                    { id: "item_wheel_roll", name: "腳輪順暢度 (無異響 / 無磨損卡死)" },
-                    { id: "item_brake_lock", name: "中央煞車鎖定功能 (煞車固實不滑移)" },
+                    { id: "item_wheel_roll", name: "腳輪順暢度 (無磨損卡死)" },
+                    { id: "item_brake_lock", name: "中央煞車鎖定功能 (不滑移)" },
                     { id: "item_steer_lock", name: "方向鎖定功能 (Steering Lock)" }
                 ]
             },
             {
                 category: "2. 床體升降與結構 (Hydraulic & Frame)",
                 items: [
-                    { id: "item_height_adj", name: "液壓升降機制 (High-Low Hydraulics)" },
-                    { id: "item_trend_tilt", name: "頭高腳低/腳高頭低傾斜 (Trendelenburg)" },
-                    { id: "item_backrest", name: "背板升降氣壓棒 (Backrest Pneumatic Springs)" }
+                    { id: "item_height_adj", name: "液壓升降機制 (High-Low)" },
+                    { id: "item_trend_tilt", name: "頭高/腳高傾斜 (Trendelenburg)" },
+                    { id: "item_backrest", name: "背板升降氣壓棒" }
                 ]
             },
             {
                 category: "3. 安全護欄與床墊 (Rails & Mattress)",
                 items: [
-                    { id: "item_side_rails", name: "兩側折疊護欄 (Side Rails Lock)" },
-                    { id: "item_mattress_cond", name: "防液體床墊皮套 (無破損/消毒良好)" },
-                    { id: "item_belts", name: "病患固定安全帶 (Patient Restraint Belts)" }
+                    { id: "item_side_rails", name: "兩側折疊護欄 (Side Rails)" },
+                    { id: "item_mattress_cond", name: "防液體床墊皮套 (消毒良好)" },
+                    { id: "item_belts", name: "病患固定安全帶" }
                 ]
             },
             {
                 category: "4. 附屬配件 (Accessories)",
                 items: [
-                    { id: "item_iv_pole", name: "點滴架 / IV Pole 伸縮正常" },
-                    { id: "item_oxygen_holder", name: "氧氣筒固定架 (Oxygen Tank Holder)" }
+                    { id: "item_iv_pole", name: "點滴架 / IV Pole 伸縮" },
+                    { id: "item_oxygen_holder", name: "氧氣筒固定架" }
                 ]
             }
         ];
@@ -864,10 +777,11 @@
             renderChecklist();
             initSignaturePad();
             initBatchSignaturePad();
-            loadHistoryFromStorage();
             generateRefNo();
             renderHospitalOptions();
-            updatePendingBadges();
+            
+            // 從雲端載入最新歷史紀錄與自訂清單
+            fetchHistoryFromCloud();
 
             window.addEventListener('resize', () => {
                 resizeCanvas();
@@ -896,20 +810,15 @@
         function loadDbMap() {
             try {
                 const saved = localStorage.getItem('stretcher_db_map');
-                if (saved) {
-                    dbMap = JSON.parse(saved);
-                } else {
-                    dbMap = JSON.parse(JSON.stringify(initialDataMap));
-                }
+                if (saved) dbMap = JSON.parse(saved);
+                else dbMap = JSON.parse(JSON.stringify(initialDataMap));
             } catch(e) {
                 dbMap = JSON.parse(JSON.stringify(initialDataMap));
             }
         }
 
         function saveDbMap() {
-            try {
-                localStorage.setItem('stretcher_db_map', JSON.stringify(dbMap));
-            } catch(e) {}
+            try { localStorage.setItem('stretcher_db_map', JSON.stringify(dbMap)); } catch(e) {}
         }
 
         function renderHospitalOptions(selectedHosp) {
@@ -934,13 +843,11 @@
             } else {
                 customInput.classList.add('hidden');
             }
-
             renderVehicleOptions(hospName);
         }
 
         function renderVehicleOptions(hospName, selectedVehicle) {
             const vehicleSelect = document.getElementById('vehicle-select');
-            
             if (!hospName || !dbMap[hospName]) {
                 vehicleSelect.innerHTML = `<option value="">-- 無車牌資料 --</option>`;
                 renderStretcherOptions("", "");
@@ -957,7 +864,6 @@
             vehicleSelect.innerHTML = vehicles.map(v => `<option value="${v}">${v}</option>`).join('');
             const targetVehicle = selectedVehicle && dbMap[hospName][selectedVehicle] ? selectedVehicle : vehicles[0];
             vehicleSelect.value = targetVehicle;
-
             handleVehicleChange(targetVehicle);
         }
 
@@ -978,22 +884,19 @@
 
             const snList = dbMap[hospName][vehiclePlate];
             if (snList.length === 0) {
-                stretcherSelect.innerHTML = `<option value="">-- 該車牌無登記擔架床 --</option>`;
+                stretcherSelect.innerHTML = `<option value="">-- 無登記擔架床 --</option>`;
                 stretcherInput.value = "";
                 return;
             }
 
             stretcherSelect.innerHTML = snList.map(sn => `<option value="${sn}">${sn}</option>`).join('');
-            
             const targetSN = selectedSN && snList.includes(selectedSN) ? selectedSN : snList[0];
             stretcherSelect.value = targetSN;
             stretcherInput.value = targetSN;
         }
 
         function handleStretcherSelectChange(val) {
-            if (val) {
-                document.getElementById('stretcher-id').value = val;
-            }
+            if (val) document.getElementById('stretcher-id').value = val;
         }
 
         function handleStretcherInputChange(val) {
@@ -1026,18 +929,13 @@
                 }
 
                 pendingReassign = {
-                    sn: sn,
-                    oldHosp: existingLoc.hospital,
-                    oldVeh: existingLoc.vehicle,
-                    newHosp: currentHosp,
-                    newVeh: currentVeh,
-                    callback: callbackOnSuccess
+                    sn: sn, oldHosp: existingLoc.hospital, oldVeh: existingLoc.vehicle,
+                    newHosp: currentHosp, newVeh: currentVeh, callback: callbackOnSuccess
                 };
 
                 document.getElementById('reassign-sn').innerText = sn;
                 document.getElementById('reassign-old-loc').innerText = `${existingLoc.vehicle} (${existingLoc.hospital.split(' ')[0]})`;
                 document.getElementById('reassign-new-loc').innerText = `${currentVeh} (${currentHosp.split(' ')[0]})`;
-
                 document.getElementById('reassign-modal').classList.remove('hidden');
             } else {
                 if (!dbMap[currentHosp]) dbMap[currentHosp] = {};
@@ -1066,8 +964,7 @@
             saveDbMap();
             document.getElementById('reassign-modal').classList.add('hidden');
             renderStretcherOptions(newHosp, newVeh, sn);
-            showToast(`已成功將床號 ${sn} 調配至車牌 ${newVeh}！`);
-
+            showToast(`已調配床號 ${sn} 至車牌 ${newVeh}！`);
             if (callback) callback();
             pendingReassign = null;
         }
@@ -1084,7 +981,6 @@
         function promptAddNewVehicle() {
             const hosp = getHospitalValue();
             if (!hosp) return;
-
             const newVeh = prompt(`請輸入要在 [${hosp}] 新增的車牌號碼 (例: AM-9988):`);
             if (newVeh && newVeh.trim()) {
                 const formatted = newVeh.trim().toUpperCase();
@@ -1094,8 +990,6 @@
                     saveDbMap();
                     renderVehicleOptions(hosp, formatted);
                     showToast(`已新增車牌: ${formatted}`);
-                } else {
-                    showToast(`車牌 ${formatted} 已存在`, "error");
                 }
             }
         }
@@ -1103,32 +997,23 @@
         function promptAddNewStretcher() {
             const hosp = getHospitalValue();
             const veh = document.getElementById('vehicle-select').value;
-
-            if (!hosp || !veh) {
-                showToast("請先選取醫院及車牌號碼", "error");
-                return;
-            }
-
-            const newSn = prompt(`請輸入要在車牌 [${veh}] 新增的擔架床編號 (例: 26NG0903162):`);
+            if (!hosp || !veh) return;
+            const newSn = prompt(`請輸入要在車牌 [${veh}] 新增的擔架床編號:`);
             if (newSn && newSn.trim()) {
-                const formattedSn = newSn.trim().toUpperCase();
-                checkStretcherOwnershipAndPrompt(formattedSn);
+                checkStretcherOwnershipAndPrompt(newSn.trim().toUpperCase());
             }
         }
 
         function getHospitalValue() {
             const selectEl = document.getElementById('hospital-select');
-            if(selectEl.value === 'custom') {
-                return document.getElementById('hospital-custom').value.trim();
-            }
+            if(selectEl.value === 'custom') return document.getElementById('hospital-custom').value.trim();
             return selectEl.value;
         }
 
         function handleDeptSelectChange(val) {
             const customInput = document.getElementById('signer-dept-custom');
             if (val === 'custom') {
-                customInput.classList.remove('hidden');
-                customInput.focus();
+                customInput.classList.remove('hidden'); customInput.focus();
             } else {
                 customInput.classList.add('hidden');
             }
@@ -1136,9 +1021,7 @@
 
         function getSignerDeptValue() {
             const selectEl = document.getElementById('signer-dept-select');
-            if (selectEl.value === 'custom') {
-                return document.getElementById('signer-dept-custom').value.trim();
-            }
+            if (selectEl.value === 'custom') return document.getElementById('signer-dept-custom').value.trim();
             return selectEl.value;
         }
 
@@ -1146,7 +1029,6 @@
         function processLabelOCR(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 preprocessBlackLabelImage(e.target.result, function(enhancedDataUrl) {
@@ -1192,99 +1074,81 @@
             const progressBar = document.getElementById('ocr-progress-bar');
 
             loadingModal.classList.remove('hidden');
-            statusText.innerText = "載入高精度銘牌辨識引擎...";
-            progressBar.style.width = "20%";
+            statusText.innerText = "分析銘牌貼紙中...";
+            progressBar.style.width = "30%";
 
-            Tesseract.recognize(
-                imageDataUrl, 'eng',
-                {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const p = Math.round(m.progress * 100);
-                            statusText.innerText = `分析銘牌貼紙中... ${p}%`;
-                            progressBar.style.width = `${p}%`;
-                        }
+            Tesseract.recognize(imageDataUrl, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const p = Math.round(m.progress * 100);
+                        statusText.innerText = `辨識中... ${p}%`;
+                        progressBar.style.width = `${p}%`;
                     }
                 }
-            ).then(({ data: { text } }) => {
+            }).then(({ data: { text } }) => {
                 loadingModal.classList.add('hidden');
-                let cleaned = text.toUpperCase().replace(/[\r\n]/g, ' ').replace(/O(?=\d)/g, '0').replace(/(?<=\d)O/g, '0');
-                const snRegex1 = /(2[56]N[G]?[0-9A-Z]{7,8})/g;
-                let match = cleaned.match(snRegex1);
+                let cleaned = text.toUpperCase().replace(/[\r\n]/g, ' ').replace(/O(?=\d)/g, '0');
+                const snRegex = /(2[56][NHM][G]?[0-9A-Z]{7,8})/g;
+                let match = cleaned.match(snRegex);
 
                 if (match && match.length > 0) {
-                    let resultSN = match[0].replace(/[^0-9A-Z]/g, '').replace(/^2([56])[HM]/, '2$1N');
-                    applyRecognizedSN(resultSN);
-                    return;
+                    applyRecognizedSN(match[0].replace(/[^0-9A-Z]/g, ''));
+                } else {
+                    showToast("未能自動辨識床號，請手動選擇", "error");
                 }
-
-                const compact = cleaned.replace(/[\-\s]/g, '');
-                const snRegex2 = /(2[56][NHM][G]?[0-9A-Z]{7,8})/g;
-                match = compact.match(snRegex2);
-                if (match && match.length > 0) {
-                    let resultSN = match[0].replace(/^2([56])[HM]/, '2$1N');
-                    applyRecognizedSN(resultSN);
-                    return;
-                }
-
-                const looseMatch = compact.match(/(2\d{9,10})/g);
-                if (looseMatch && looseMatch.length > 0) {
-                    applyRecognizedSN(looseMatch[0]);
-                    return;
-                }
-
-                showToast("未能辨識到 25N/26N 床號，請手動選擇或重新拍照", "error");
-            }).catch(err => {
+            }).catch(() => {
                 loadingModal.classList.add('hidden');
-                showToast("相片辨識過程發生錯誤，請重試", "error");
+                showToast("相片辨識失敗，請重試", "error");
             });
         }
 
         function applyRecognizedSN(sn) {
             document.getElementById('stretcher-id').value = sn;
-            checkStretcherOwnershipAndPrompt(sn, () => {
-                showToast(`成功自動識別並選擇床號: ${sn}`);
-            });
+            checkStretcherOwnershipAndPrompt(sn, () => showToast(`已選擇床號: ${sn}`));
         }
 
-        // --- Checklist Management ---
+        // --- Checklist Management (Sync to Cloud) ---
         function loadChecklistCategories() {
             try {
                 const saved = localStorage.getItem('stretcher_custom_checklist');
-                if (saved) {
-                    activeChecklistCategories = JSON.parse(saved);
-                } else {
-                    activeChecklistCategories = JSON.parse(JSON.stringify(defaultChecklistCategories));
-                }
+                if (saved) activeChecklistCategories = JSON.parse(saved);
+                else activeChecklistCategories = JSON.parse(JSON.stringify(defaultChecklistCategories));
             } catch (e) {
                 activeChecklistCategories = JSON.parse(JSON.stringify(defaultChecklistCategories));
             }
         }
 
-        function saveChecklistCategories() {
+        function saveChecklistCategories(syncToCloud = true) {
             try {
                 localStorage.setItem('stretcher_custom_checklist', JSON.stringify(activeChecklistCategories));
+                if (syncToCloud && GAS_URL) {
+                    fetch(GAS_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ action: "save_checklist", checklistCategories: activeChecklistCategories })
+                    });
+                }
             } catch (e) {}
         }
 
         function resetChecklistToDefault() {
             activeChecklistCategories = JSON.parse(JSON.stringify(defaultChecklistCategories));
-            saveChecklistCategories();
+            saveChecklistCategories(true);
             renderChecklistEditorTree();
             renderChecklist();
-            showToast("檢查清單已恢復為系統初始預設值");
+            showToast("檢查清單已恢復為預設值");
         }
 
         function openChecklistManagerModal() {
             renderChecklistEditorTree();
-            const modal = document.getElementById('checklist-manager-modal');
-            if (modal) modal.classList.remove('hidden');
+            document.getElementById('checklist-manager-modal').classList.remove('hidden');
         }
 
         function closeChecklistManagerModal() {
-            const modal = document.getElementById('checklist-manager-modal');
-            if (modal) modal.classList.add('hidden');
+            saveChecklistCategories(true);
+            document.getElementById('checklist-manager-modal').classList.add('hidden');
             renderChecklist();
+            showToast("已同步自訂點檢清單至雲端");
         }
 
         function renderChecklistEditorTree() {
@@ -1294,25 +1158,25 @@
 
             activeChecklistCategories.forEach((cat, catIdx) => {
                 const catCard = document.createElement('div');
-                catCard.className = "border border-slate-200 rounded-xl bg-slate-50 p-4 space-y-3";
+                catCard.className = "border border-slate-200 rounded-xl bg-slate-50 p-3 space-y-2 text-xs";
                 
                 let itemsHtml = '';
                 cat.items.forEach((item, itemIdx) => {
                     itemsHtml += `
-                        <div class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-slate-200">
-                            <input type="text" value="${item.name}" onchange="editChecklistItemName(${catIdx}, ${itemIdx}, this.value)" class="flex-1 text-xs font-medium text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-teal-500">
-                            <button onclick="deleteChecklistItem(${catIdx}, ${itemIdx})" class="text-rose-500 hover:text-rose-700 p-1 text-xs"><i class="fa-solid fa-trash-can"></i></button>
+                        <div class="flex items-center space-x-2 bg-white p-1.5 rounded-lg border border-slate-200">
+                            <input type="text" value="${item.name}" onchange="editChecklistItemName(${catIdx}, ${itemIdx}, this.value)" class="flex-1 text-xs font-medium text-slate-800 bg-transparent outline-none">
+                            <button onclick="deleteChecklistItem(${catIdx}, ${itemIdx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     `;
                 });
 
                 catCard.innerHTML = `
-                    <div class="flex justify-between items-center border-b border-slate-200 pb-2">
-                        <input type="text" value="${cat.category}" onchange="editCategoryName(${catIdx}, this.value)" class="font-bold text-xs text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-teal-500 flex-1 mr-2">
-                        <button onclick="deleteCategory(${catIdx})" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center space-x-1"><i class="fa-solid fa-trash-can"></i> 刪除分類</button>
+                    <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                        <input type="text" value="${cat.category}" onchange="editCategoryName(${catIdx}, this.value)" class="font-bold text-xs text-slate-800 bg-transparent outline-none flex-1 mr-2">
+                        <button onclick="deleteCategory(${catIdx})" class="text-rose-600 font-semibold text-[11px]"><i class="fa-solid fa-trash-can"></i> 刪除</button>
                     </div>
-                    <div class="space-y-2 pl-2">${itemsHtml}</div>
-                    <div class="pt-1"><button onclick="addNewItemToCategory(${catIdx})" class="text-xs text-teal-600 hover:text-teal-800 font-semibold flex items-center space-x-1"><i class="fa-solid fa-plus-circle"></i><span>新增點檢子項目</span></button></div>
+                    <div class="space-y-1.5 pl-1">${itemsHtml}</div>
+                    <button onclick="addNewItemToCategory(${catIdx})" class="text-teal-600 font-semibold text-[11px] pt-1"><i class="fa-solid fa-plus-circle"></i> 新增項目</button>
                 `;
                 tree.appendChild(catCard);
             });
@@ -1322,37 +1186,31 @@
             const input = document.getElementById('new-category-name');
             const name = input.value.trim();
             if (!name) return;
-            activeChecklistCategories.push({ category: name, items: [{ id: `custom_${Date.now()}_1`, name: "新檢驗項目 (點擊修改)" }] });
+            activeChecklistCategories.push({ category: name, items: [{ id: `custom_${Date.now()}_1`, name: "新點檢項目" }] });
             input.value = '';
-            saveChecklistCategories();
             renderChecklistEditorTree();
-            showToast("成功新增點檢分類");
         }
 
         function editCategoryName(catIdx, val) {
-            if (val.trim()) { activeChecklistCategories[catIdx].category = val.trim(); saveChecklistCategories(); }
+            if (val.trim()) activeChecklistCategories[catIdx].category = val.trim();
         }
 
         function deleteCategory(catIdx) {
             activeChecklistCategories.splice(catIdx, 1);
-            saveChecklistCategories();
             renderChecklistEditorTree();
-            showToast("已刪除分類");
         }
 
         function addNewItemToCategory(catIdx) {
-            activeChecklistCategories[catIdx].items.push({ id: `item_${Date.now()}`, name: "新點檢項目 (點擊修改)" });
-            saveChecklistCategories();
+            activeChecklistCategories[catIdx].items.push({ id: `item_${Date.now()}`, name: "新點檢項目" });
             renderChecklistEditorTree();
         }
 
         function editChecklistItemName(catIdx, itemIdx, val) {
-            if (val.trim()) { activeChecklistCategories[catIdx].items[itemIdx].name = val.trim(); saveChecklistCategories(); }
+            if (val.trim()) activeChecklistCategories[catIdx].items[itemIdx].name = val.trim();
         }
 
         function deleteChecklistItem(catIdx, itemIdx) {
             activeChecklistCategories[catIdx].items.splice(itemIdx, 1);
-            saveChecklistCategories();
             renderChecklistEditorTree();
         }
 
@@ -1363,17 +1221,17 @@
 
             activeChecklistCategories.forEach((cat) => {
                 const catEl = document.createElement('div');
-                catEl.className = 'bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3';
-                let html = `<h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center"><i class="fa-solid fa-screwdriver-wrench mr-2 text-teal-600"></i>${cat.category}</h3><div class="space-y-2">`;
+                catEl.className = 'bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 space-y-2.5';
+                let html = `<h3 class="text-xs font-bold text-slate-700 uppercase flex items-center"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${cat.category}</h3><div class="space-y-2">`;
 
                 cat.items.forEach(item => {
                     html += `
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-slate-200 gap-2">
-                        <span class="text-sm font-medium text-slate-800">${item.name}</span>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200 gap-2">
+                        <span class="text-xs sm:text-sm font-medium text-slate-800">${item.name}</span>
                         <div class="flex items-center space-x-1 sm:space-x-2" id="group-${item.id}">
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1" data-selected="true"><i class="fa-solid fa-circle-check"></i><span>正常 Pass</span></button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 transition flex items-center space-x-1" data-selected="false"><i class="fa-solid fa-circle-xmark"></i><span>需維修 Issue</span></button>
-                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1" data-selected="false"><span>N/A</span></button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'pass')" id="btn-${item.id}-pass" class="status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white transition flex-1 sm:flex-none" data-selected="true"><i class="fa-solid fa-circle-check mr-1"></i>正常</button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'fail')" id="btn-${item.id}-fail" class="status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 hover:bg-rose-100 transition flex-1 sm:flex-none" data-selected="false"><i class="fa-solid fa-circle-xmark mr-1"></i>需維修</button>
+                            <button type="button" onclick="setChecklistItemStatus('${item.id}', 'na')" id="btn-${item.id}-na" class="status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex-1 sm:flex-none" data-selected="false">N/A</button>
                         </div>
                     </div>`;
                 });
@@ -1391,24 +1249,24 @@
 
             [passBtn, failBtn, naBtn].forEach(b => {
                 b.dataset.selected = "false";
-                b.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex items-center space-x-1";
+                b.className = "status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-slate-100 text-slate-600 transition flex-1 sm:flex-none";
             });
 
             if(status === 'pass') {
                 passBtn.dataset.selected = "true";
-                passBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white shadow-sm transition flex items-center space-x-1";
+                passBtn.className = "status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-emerald-500 text-white transition flex-1 sm:flex-none";
             } else if(status === 'fail') {
                 failBtn.dataset.selected = "true";
-                failBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-rose-500 text-white shadow-sm transition flex items-center space-x-1";
+                failBtn.className = "status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-rose-500 text-white transition flex-1 sm:flex-none";
             } else {
                 naBtn.dataset.selected = "true";
-                naBtn.className = "status-btn px-3 py-1 text-xs rounded-md font-semibold bg-slate-700 text-white shadow-sm transition flex items-center space-x-1";
+                naBtn.className = "status-btn px-2.5 py-1 text-xs rounded-md font-semibold bg-slate-700 text-white transition flex-1 sm:flex-none";
             }
         }
 
         function setAllChecklistPass() {
             activeChecklistCategories.forEach(cat => cat.items.forEach(item => setChecklistItemStatus(item.id, 'pass')));
-            showToast("已將所有檢查項目預設為「正常」");
+            showToast("已預設所有項目為「正常」");
         }
 
         // --- Step Navigation ---
@@ -1423,18 +1281,9 @@
                 const ind = document.getElementById(`step-ind-${i}`);
                 if (!ind) continue;
                 const badge = ind.querySelector('span:first-child');
-                const text = ind.querySelector('span:last-child');
-
-                if(i === step) {
-                    badge.className = "w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm shadow";
-                    if(text) text.className = "text-xs sm:text-sm font-semibold text-slate-800 hidden sm:inline";
-                } else if(i < step) {
-                    badge.className = "w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm";
-                    if(text) text.className = "text-xs sm:text-sm font-semibold text-slate-600 hidden sm:inline";
-                } else {
-                    badge.className = "w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm";
-                    if(text) text.className = "text-xs sm:text-sm font-semibold text-slate-400 hidden sm:inline";
-                }
+                if(i === step) badge.className = "w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs sm:text-sm shadow";
+                else if(i < step) badge.className = "w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs sm:text-sm";
+                else badge.className = "w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs sm:text-sm";
             }
 
             currentStep = step;
@@ -1447,42 +1296,31 @@
                 const veh = document.getElementById('vehicle-select').value;
                 const id = document.getElementById('stretcher-id').value.trim();
                 const inspector = document.getElementById('inspector-name').value.trim();
-
                 if(!hosp || !veh || !id || !inspector) {
-                    showToast("請填寫所有必填欄位 (醫院、車牌號碼、擔架床編號、巡查人員)", "error");
+                    showToast("請填寫所有必填欄位", "error");
                     return false;
                 }
             }
             return true;
         }
 
-        // --- Photo Handlers & Automatic Image Compression Engine ---
-        function compressAndResizeImage(file, maxDimension = 1200, quality = 0.75) {
+        // --- Photo Handlers & Compression Engine ---
+        function compressAndResizeImage(file, maxDimension = 800, quality = 0.65) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const img = new Image();
                     img.onload = function() {
-                        let w = img.width;
-                        let h = img.height;
+                        let w = img.width, h = img.height;
                         if (w > maxDimension || h > maxDimension) {
-                            if (w > h) {
-                                h = Math.round((h * maxDimension) / w);
-                                w = maxDimension;
-                            } else {
-                                w = Math.round((w * maxDimension) / h);
-                                h = maxDimension;
-                            }
+                            if (w > h) { h = Math.round((h * maxDimension) / w); w = maxDimension; }
+                            else { w = Math.round((w * maxDimension) / h); h = maxDimension; }
                         }
-
                         const canvas = document.createElement('canvas');
-                        canvas.width = w;
-                        canvas.height = h;
+                        canvas.width = w; canvas.height = h;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
-
-                        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-                        resolve(compressedDataUrl);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
                     };
                     img.onerror = reject;
                     img.src = e.target.result;
@@ -1495,45 +1333,39 @@
         async function handlePhotoUpload(event) {
             const files = event.target.files;
             if(!files || files.length === 0) return;
-
-            showToast("正在針對相片進行智慧壓縮處理...");
+            showToast("正在智慧壓縮相片...");
 
             for (let file of Array.from(files)) {
                 try {
-                    const compressedDataUrl = await compressAndResizeImage(file, 1200, 0.75);
+                    const compressedDataUrl = await compressAndResizeImage(file, 800, 0.65);
                     uploadedPhotos.push({
                         id: Date.now() + Math.random().toString(36).substr(2, 4),
                         dataUrl: compressedDataUrl,
                         title: `相片 #${uploadedPhotos.length + 1}`,
-                        note: "損壞部位及外觀紀錄"
+                        note: "現場紀錄"
                     });
-                } catch(err) {
-                    console.error("相片壓縮失敗:", err);
-                }
+                } catch(err) {}
             }
-
             renderPhotoGrid();
-            showToast(`已成功上傳並壓縮 ${files.length} 張相片`);
+            showToast(`已成功上傳 ${files.length} 張相片`);
         }
 
         function addSamplePhoto() {
             const canvas = document.createElement('canvas');
-            canvas.width = 400; canvas.height = 300;
+            canvas.width = 300; canvas.height = 225;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 0, 400, 300);
-            ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(200, 150, 70, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(200, 150, 30, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(220, 120, 35, 0, Math.PI * 2); ctx.stroke();
-            ctx.fillStyle = '#ef4444'; ctx.font = 'bold 16px Inter, sans-serif'; ctx.fillText('剎車固定扣裂痕', 150, 60);
+            ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, 0, 300, 225);
+            ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(150, 112, 50, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ef4444'; ctx.font = 'bold 14px sans-serif'; ctx.fillText('損壞磨損處', 110, 50);
 
             uploadedPhotos.push({
                 id: Date.now().toString(),
-                dataUrl: canvas.toDataURL('image/jpeg'),
-                title: "腳輪煞車齒輪損壞測試相片",
-                note: "右後側腳輪鎖定齒輪磨損，需要安排維修"
+                dataUrl: canvas.toDataURL('image/jpeg', 0.7),
+                title: "腳輪齒輪測試相片",
+                note: "需要安排維修"
             });
             renderPhotoGrid();
-            showToast("已添加測試相片 (Demo)");
+            showToast("已新增測試相片");
         }
 
         function renderPhotoGrid() {
@@ -1551,14 +1383,14 @@
             grid.innerHTML = '';
             uploadedPhotos.forEach((photo) => {
                 const card = document.createElement('div');
-                card.className = "bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center space-x-3";
+                card.className = "bg-slate-50 p-2 rounded-xl border border-slate-200 flex items-center space-x-2 text-xs";
                 card.innerHTML = `
-                    <img src="${photo.dataUrl}" class="w-16 h-16 object-cover rounded-lg border border-slate-300 shadow-sm flex-shrink-0">
+                    <img src="${photo.dataUrl}" class="w-12 h-12 object-cover rounded-lg border flex-shrink-0">
                     <div class="flex-1 min-w-0">
-                        <input type="text" value="${photo.title}" onchange="updatePhotoDetail('${photo.id}', 'title', this.value)" class="text-xs font-bold text-slate-800 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none">
-                        <input type="text" value="${photo.note}" onchange="updatePhotoDetail('${photo.id}', 'note', this.value)" placeholder="輸入相片描述..." class="text-xs text-slate-500 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-teal-500 outline-none mt-1">
+                        <input type="text" value="${photo.title}" onchange="updatePhotoDetail('${photo.id}', 'title', this.value)" class="font-bold text-slate-800 w-full bg-transparent outline-none">
+                        <input type="text" value="${photo.note}" onchange="updatePhotoDetail('${photo.id}', 'note', this.value)" placeholder="輸入備註..." class="text-slate-500 w-full bg-transparent outline-none">
                     </div>
-                    <button type="button" onclick="deletePhoto('${photo.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 transition"><i class="fa-solid fa-trash-can"></i></button>
+                    <button type="button" onclick="deletePhoto('${photo.id}')" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
                 `;
                 grid.appendChild(card);
             });
@@ -1572,7 +1404,6 @@
         function deletePhoto(id) {
             uploadedPhotos = uploadedPhotos.filter(p => p.id !== id);
             renderPhotoGrid();
-            showToast("已刪除相片");
         }
 
         // --- Signature Pad Setup ---
@@ -1584,20 +1415,17 @@
             signatureCanvas.addEventListener('mousedown', startSigning);
             signatureCanvas.addEventListener('mousemove', drawSigning);
             signatureCanvas.addEventListener('mouseup', stopSigning);
-            signatureCanvas.addEventListener('mouseleave', stopSigning);
 
             signatureCanvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 startSigning({ clientX: touch.clientX, clientY: touch.clientY });
             });
-
             signatureCanvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 drawSigning({ clientX: touch.clientX, clientY: touch.clientY });
             });
-
             signatureCanvas.addEventListener('touchend', stopSigning);
         }
 
@@ -1606,7 +1434,7 @@
             const container = signatureCanvas.parentElement;
             if(!container) return;
             signatureCanvas.width = container.clientWidth;
-            signatureCanvas.height = 192;
+            signatureCanvas.height = container.clientHeight || 160;
             signatureCtx.lineWidth = 2.5;
             signatureCtx.lineCap = 'round';
             signatureCtx.strokeStyle = '#0f172a';
@@ -1651,7 +1479,6 @@
             batchSignatureCanvas.addEventListener('mousedown', (e) => startBatchSigning(e));
             batchSignatureCanvas.addEventListener('mousemove', (e) => drawBatchSigning(e));
             batchSignatureCanvas.addEventListener('mouseup', () => stopBatchSigning());
-            batchSignatureCanvas.addEventListener('mouseleave', () => stopBatchSigning());
 
             batchSignatureCanvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -1671,7 +1498,7 @@
             const container = batchSignatureCanvas.parentElement;
             if(!container) return;
             batchSignatureCanvas.width = container.clientWidth;
-            batchSignatureCanvas.height = 160;
+            batchSignatureCanvas.height = 140;
             batchSignatureCtx.lineWidth = 2.5;
             batchSignatureCtx.lineCap = 'round';
             batchSignatureCtx.strokeStyle = '#0f172a';
@@ -1697,17 +1524,11 @@
             batchSignatureCtx.clearRect(0, 0, batchSignatureCanvas.width, batchSignatureCanvas.height);
         }
 
-        // --- Form Submission & Temporary Save ---
-        
-        // 模式 1：暫存待集中簽名
-        function saveAsPendingInspection() {
-            submitInspectionFormProcess(true);
-        }
-
-        // 模式 2：即時簽收
+        // --- Form Submission & Sync ---
+        function saveAsPendingInspection() { submitInspectionFormProcess(true); }
         function submitInspectionForm() {
             if(isCanvasBlank(signatureCanvas)) {
-                showToast("請先完成客戶電子簽署，或選擇「暫存待集中簽名」！", "error");
+                showToast("請先完成客戶電子簽名！", "error");
                 return;
             }
             submitInspectionFormProcess(false);
@@ -1733,18 +1554,10 @@
                     const passBtn = document.getElementById(`btn-${item.id}-pass`);
                     const failBtn = document.getElementById(`btn-${item.id}-fail`);
                     let status = "N/A";
-
                     if(passBtn && passBtn.dataset.selected === "true") status = "Pass";
-                    if(failBtn && failBtn.dataset.selected === "true") {
-                        status = "Issue";
-                        hasIssue = true;
-                    }
+                    if(failBtn && failBtn.dataset.selected === "true") { status = "Issue"; hasIssue = true; }
 
-                    checklistResults.push({
-                        category: cat.category,
-                        name: item.name,
-                        status: status
-                    });
+                    checklistResults.push({ category: cat.category, name: item.name, status: status });
                 });
             });
 
@@ -1763,8 +1576,7 @@
                 overallStatus: hasIssue ? "需跟進維修" : "檢查合格",
                 checklist: checklistResults,
                 photos: [...uploadedPhotos],
-                signature: signatureData,
-                driveFolderPath: `Google Drive / 擔架床檢查系統歸檔 / 2026年 / ${hospital} / ${dateStr.slice(0,10).replace(/-/g,'')}_車牌${vehiclePlate}_床號${stretcherId}/`
+                signature: signatureData
             };
 
             const overlay = document.getElementById('sync-overlay');
@@ -1772,32 +1584,9 @@
             const progressBar = document.getElementById('sync-progress-bar');
             
             overlay.classList.remove('hidden');
-            progressBar.style.width = '40%';
-            statusText.innerText = isPending ? '正在暫存檢查紀錄...' : '正在同步至 Google Drive...';
+            progressBar.style.width = '50%';
+            statusText.innerText = '正在上傳數據至雲端...';
 
-            setTimeout(() => {
-                progressBar.style.width = '100%';
-                overlay.classList.add('hidden');
-                
-                inspectionHistory.unshift(record);
-                saveHistoryToStorage();
-
-                let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
-                localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
-
-                if(isPending) {
-                    showToast(`已成功暫存報告 #${refNo}！待所有床檢完成後可集中簽署。`);
-                    resetFormForNextInspection();
-                } else {
-                    openPdfModal(record);
-                    showToast("成功提交並完成 Google Drive 歸檔！");
-                }
-
-                generateRefNo();
-                updatePendingBadges();
-            }, 600);
-
-            // Google Sheets 跨網域同步 (修復後：使用 text/plain 發送完整 JSON)
             if (GAS_URL) {
                 fetch(GAS_URL, {
                     method: "POST",
@@ -1805,155 +1594,169 @@
                     body: JSON.stringify(record)
                 })
                 .then(res => res.json())
-                .then(data => console.log("Google Cloud Sheet 傳輸結果:", data))
-                .catch(err => console.error("同步至 Google Sheet 失敗:", err));
+                .then(() => {
+                    progressBar.style.width = '100%';
+                    overlay.classList.add('hidden');
+                    let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
+                    localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
+
+                    if(isPending) {
+                        showToast(`已成功暫存報告 #${refNo}！`);
+                        resetFormForNextInspection();
+                    } else {
+                        openPdfModal(record);
+                        showToast("成功提交並完成 Drive 歸檔！");
+                    }
+                    generateRefNo();
+                    fetchHistoryFromCloud();
+                })
+                .catch(err => {
+                    overlay.classList.add('hidden');
+                    showToast("同步雲端失敗，請重新再試", "error");
+                });
             }
         }
 
-        // --- Generate PDF HTML Helper ---
-        // --- Generate PDF HTML Helper (相片與檢查項目相容增強版) ---
-function generatePdfHtmlString(record) {
-    const categorizedChecklist = {};
-    if (record.checklist && record.checklist.length > 0) {
-        record.checklist.forEach(item => {
-            const cat = item.category || "一般檢查項目";
-            if (!categorizedChecklist[cat]) categorizedChecklist[cat] = [];
-            categorizedChecklist[cat].push(item);
-        });
-    }
+        // --- Generate PDF HTML (Strict Single Page A4 + Official Footer) ---
+        function generatePdfHtmlString(record) {
+            const categorizedChecklist = {};
+            if (record.checklist && record.checklist.length > 0) {
+                record.checklist.forEach(item => {
+                    const cat = item.category || "一般檢查項目";
+                    if (!categorizedChecklist[cat]) categorizedChecklist[cat] = [];
+                    categorizedChecklist[cat].push(item);
+                });
+            }
 
-    let checklistHtml = '';
-    const categories = Object.keys(categorizedChecklist);
+            let checklistHtml = '';
+            for (const [catName, items] of Object.entries(categorizedChecklist)) {
+                let itemsRows = '';
+                items.forEach(item => {
+                    let badgeClass = "bg-slate-100 text-slate-700";
+                    if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
+                    if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
 
-    if (categories.length === 0) {
-        checklistHtml = `
-            <tr class="text-xs text-slate-400 border-b border-slate-100">
-                <td colspan="2" class="py-3 text-center italic">所有檢查項目均測試合格與正常 (All Passed)</td>
-            </tr>
-        `;
-    } else {
-        for (const [catName, items] of Object.entries(categorizedChecklist)) {
-            let itemsRows = '';
-            items.forEach(item => {
-                let badgeClass = "bg-slate-100 text-slate-700";
-                if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
-                if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
+                    itemsRows += `
+                        <tr class="border-b border-slate-100 text-[10px]">
+                            <td class="py-1 px-2 text-slate-800 pl-4">${item.name}</td>
+                            <td class="py-1 px-2 text-center w-24 whitespace-nowrap">
+                                <span class="px-1.5 py-0.2 rounded inline-block whitespace-nowrap ${badgeClass}">
+                                    ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
 
-                itemsRows += `
-                    <tr class="border-b border-slate-100 text-xs">
-                        <td class="py-1.5 px-3 text-slate-800 pl-6">${item.name}</td>
-                        <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
-                            <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
-                                ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
-                            </span>
-                        </td>
+                checklistHtml += `
+                    <tr class="bg-slate-100/80 text-slate-800 text-[10px] font-bold border-b border-slate-200">
+                        <td class="py-1 px-2" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1 text-teal-600"></i>${catName}</td>
                     </tr>
+                    ${itemsRows}
                 `;
-            });
+            }
 
-            checklistHtml += `
-                <tr class="bg-slate-100/80 text-slate-800 text-xs font-bold border-b border-slate-200">
-                    <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
-                </tr>
-                ${itemsRows}
+            let photosHtml = '';
+            if (record.photos && record.photos.length > 0) {
+                photosHtml = `<div class="mt-2 border-t border-slate-200 pt-1.5">
+                    <h3 class="font-bold text-[10px] text-slate-700 uppercase mb-1">現場檢驗相片 (${record.photos.length} 張)</h3>
+                    <div class="grid grid-cols-3 gap-2">`;
+                record.photos.slice(0, 3).forEach(p => { // 控制最多呈現 3 張精簡擺放
+                    photosHtml += `
+                        <div class="border border-slate-200 p-1 rounded bg-slate-50 text-center">
+                            <img src="${p.dataUrl}" class="h-14 w-full object-cover rounded mb-0.5">
+                            <p class="text-[9px] font-bold text-slate-800 truncate">${p.title || '現場相片'}</p>
+                        </div>
+                    `;
+                });
+                photosHtml += `</div></div>`;
+            }
+
+            return `
+                <div class="pdf-compact-container max-w-2xl mx-auto space-y-2.5 font-sans text-slate-800">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-2">
+                        <div>
+                            <h1 class="text-base font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
+                            <p class="text-[10px] text-slate-500 font-mono">Stretcher Maintenance & Safety Inspection Report</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-0.5">
+                                ${record.overallStatus || '檢查合格'}
+                            </span>
+                            <p class="text-[10px] font-mono text-slate-500"># ${record.refNo}</p>
+                        </div>
+                    </div>
+
+                    <!-- Meta Table -->
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[10px] space-y-1">
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-1">
+                            <div>
+                                <span class="text-slate-500">醫院 / 機構：</span>
+                                <strong class="text-slate-900 font-bold ml-1">${record.hospital}</strong>
+                            </div>
+                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded font-bold font-mono text-[9px]">
+                                型號: IRELAND DW-AL016
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1 pt-0.5">
+                            <div><span class="text-slate-500">車牌:</span> <strong class="text-teal-700 font-mono block">${record.vehiclePlate || 'N/A'}</strong></div>
+                            <div><span class="text-slate-500">床號:</span> <strong class="text-slate-900 font-mono block">${record.stretcherId}</strong></div>
+                            <div><span class="text-slate-500">檢查人員:</span> <strong class="text-slate-900 block">${record.inspector || 'Chris Chong'}</strong></div>
+                            <div><span class="text-slate-500">日期時間:</span> <strong class="text-slate-900 block">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Checklist -->
+                    <div>
+                        <h3 class="font-bold text-[10px] text-slate-700 uppercase mb-1">檢查項目測試結果 SUMMARY</h3>
+                        <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
+                            <thead>
+                                <tr class="bg-slate-800 text-white text-[10px] font-bold">
+                                    <th class="py-1 px-2">檢測分類與項目</th>
+                                    <th class="py-1 px-2 text-center w-24 whitespace-nowrap">結果</th>
+                                </tr>
+                            </thead>
+                            <tbody>${checklistHtml}</tbody>
+                        </table>
+                    </div>
+
+                    ${photosHtml}
+
+                    <!-- Footer & Signature Section -->
+                    <div class="border-t border-slate-200 pt-2 grid grid-cols-2 gap-3">
+                        <div class="space-y-1 text-[10px]">
+                            <p class="text-slate-500 text-[9px]">特別說明 / 備註:</p>
+                            <div class="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 text-[9px] min-h-[30px]">
+                                ${record.notes || '無特別備註。'}
+                            </div>
+                            <div class="p-1.5 bg-slate-50 border border-slate-200 rounded text-[8.5px] text-slate-500 leading-tight">
+                                <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明】</p>
+                                <p>本報告經授權代表簽署，即代表已核實報告內容無誤，並確認該擔架床處於良好及正常運作狀態。</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-right text-[10px]">
+                            <p class="text-slate-500 text-[9px]">客戶 / 醫院代表電子簽收:</p>
+                            ${record.signature ? `
+                                <div class="inline-block border border-slate-300 rounded bg-slate-50 p-0.5">
+                                    <img src="${record.signature}" class="h-10 object-contain inline-block">
+                                </div>
+                            ` : `<div class="h-10 flex items-center justify-end font-bold text-amber-600 italic">（待客戶簽署）</div>`}
+                            <p class="font-bold text-slate-800 text-[10px]">${record.signerName} (${record.signerDept || '驗收人員'})</p>
+                        </div>
+                    </div>
+
+                    <!-- Official Company Name Footer -->
+                    <div class="border-t border-slate-300 pt-1.5 text-center">
+                        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">
+                            Issued by New Tech Motor Engineering Limited
+                        </p>
+                    </div>
+                </div>
             `;
         }
-    }
 
-    let photosHtml = '';
-    if (record.photos && record.photos.length > 0) {
-        photosHtml = `<div class="mt-4 border-t border-slate-200 pt-3">
-            <h3 class="font-bold text-xs text-slate-700 uppercase mb-2">現場檢驗拍攝相片記錄 (${record.photos.length} 張)</h3>
-            <div class="grid grid-cols-3 gap-3">`;
-        record.photos.forEach(p => {
-            photosHtml += `
-                <div class="border border-slate-200 p-1.5 rounded-lg text-center bg-slate-50">
-                    <img src="${p.dataUrl}" class="h-20 w-full object-cover rounded mb-1">
-                    <p class="text-[10px] font-bold text-slate-800 truncate">${p.title || '現場照片'}</p>
-                    <p class="text-[9px] text-slate-500 truncate">${p.note || ''}</p>
-                </div>
-            `;
-        });
-        photosHtml += `</div></div>`;
-    }
-
-    return `
-        <div class="pdf-compact-container max-w-3xl mx-auto space-y-4 font-sans text-slate-800">
-            <div class="flex justify-between items-start border-b-2 border-slate-900 pb-3">
-                <div>
-                    <h1 class="text-xl font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
-                    <p class="text-[11px] text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
-                </div>
-                <div class="text-right">
-                    <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-1">
-                        ${record.overallStatus || '檢查合格'}
-                    </span>
-                    <p class="text-xs font-mono text-slate-500">編號: ${record.refNo}</p>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
-                <div class="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                    <div>
-                        <span class="text-slate-500">醫院 / 機構：</span>
-                        <strong class="text-slate-900 font-bold text-sm ml-1">${record.hospital}</strong>
-                    </div>
-                    <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg font-bold font-mono text-xs">
-                        擔架床型號: IRELAND DW-AL016
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
-                    <div><span class="text-slate-500">車牌號碼:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
-                    <div><span class="text-slate-500">擔架床編號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
-                    <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector || 'Chris Chong'}</strong></div>
-                    <div><span class="text-slate-500">檢查日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
-                </div>
-            </div>
-
-            <div>
-                <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">檢查項目測試結果 SUMMARY</h3>
-                <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
-                    <thead>
-                        <tr class="bg-slate-800 text-white text-xs font-bold">
-                            <th class="py-1.5 px-3">檢測分類與項目</th>
-                            <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
-                        </tr>
-                    </thead>
-                    <tbody>${checklistHtml}</tbody>
-                </table>
-            </div>
-
-            ${photosHtml}
-
-            <div class="border-t border-slate-200 pt-3 grid grid-cols-2 gap-4">
-                <div class="space-y-2 text-xs">
-                    <div>
-                        <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
-                        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg min-h-[40px] text-slate-700 text-[11px]">
-                            ${record.notes || '無特別備註。'}
-                        </div>
-                    </div>
-                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[9.5px] text-slate-500 leading-snug">
-                        <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
-                        <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
-                    </div>
-                </div>
-
-                <div class="space-y-1 text-right">
-                    <p class="text-xs text-slate-500">客戶 / 醫院代表電子簽收:</p>
-                    ${record.signature ? `
-                        <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
-                            <img src="${record.signature}" class="h-14 object-contain inline-block">
-                        </div>
-                    ` : `<div class="h-14 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
-                    <p class="text-xs font-bold text-slate-800">${record.signerName} (${record.signerDept || '驗收人員'})</p>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-        // --- PDF Rendering Modal ---
         function openPdfModal(record) {
             const body = document.getElementById('pdf-document-body');
             body.innerHTML = generatePdfHtmlString(record);
@@ -1964,19 +1767,13 @@ function generatePdfHtmlString(record) {
             uploadedPhotos = [];
             renderPhotoGrid();
             clearSignature();
-
             document.getElementById('signer-name').value = '';
             document.getElementById('signer-dept-select').value = '非緊急服務 - 管工';
             document.getElementById('signer-dept-custom').value = '';
             document.getElementById('signer-dept-custom').classList.add('hidden');
             document.getElementById('inspection-notes').value = '';
-
             setAllChecklistPass();
             goToStep(1);
-
-            const currentHosp = getHospitalValue();
-            const currentVeh = document.getElementById('vehicle-select').value;
-            renderStretcherOptions(currentHosp, currentVeh);
         }
 
         function closePdfModal() {
@@ -1984,65 +1781,46 @@ function generatePdfHtmlString(record) {
             resetFormForNextInspection();
         }
 
-        // 從雲端 Google Sheet 自動載入最新歷史紀錄
-        // 從雲端 Google Sheet 自動載入最新歷史紀錄（並與本地高清照片/清單融合）
-function fetchHistoryFromCloud() {
-    const tableBody = document.getElementById('history-table-body');
-    if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-teal-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在從 Google 雲端同步最新紀錄...</td></tr>`;
-    }
+        // 從雲端 Google Sheet 同步歷史紀錄與自訂清單
+        function fetchHistoryFromCloud() {
+            const tableBody = document.getElementById('history-table-body');
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-teal-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-2"></i>連線同步 Google 雲端庫...</td></tr>`;
+            }
 
-    fetch(GAS_URL)
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "success" && data.records) {
-            const cloudRecords = data.records;
-
-            // 讀取本地快取的完整資料（包含高清圖片與簽名）
-            let localRecords = [];
-            try {
-                localRecords = JSON.parse(localStorage.getItem('stretcher_inspections') || '[]');
-            } catch(e) {}
-
-            // 將雲端資料與本地資料融合
-            inspectionHistory = cloudRecords.map(cloudRec => {
-                const matchedLocal = localRecords.find(l => l.refNo === cloudRec.refNo);
-                return {
-                    ...cloudRec,
-                    // 若雲端無照片/簽名，自動優先引用本地備份
-                    photos: (cloudRec.photos && cloudRec.photos.length > 0) ? cloudRec.photos : (matchedLocal ? matchedLocal.photos || [] : []),
-                    signature: cloudRec.signature || (matchedLocal ? matchedLocal.signature : null),
-                    checklist: (cloudRec.checklist && cloudRec.checklist.length > 0) ? cloudRec.checklist : (matchedLocal ? matchedLocal.checklist || [] : [])
-                };
+            fetch(GAS_URL)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    inspectionHistory = data.records || [];
+                    // 若雲端有最新的全域自訂點檢清單，同步更正本地
+                    if (data.customChecklist) {
+                        activeChecklistCategories = data.customChecklist;
+                        saveChecklistCategories(false);
+                        renderChecklist();
+                    }
+                    renderHistoryRecords();
+                    updatePendingBadges();
+                }
+            })
+            .catch(err => {
+                showToast("網路連線異常，讀取歷史失敗", "error");
             });
-
-            saveHistoryToStorage();
-            renderHistoryRecords();
-            updatePendingBadges();
-            showToast("成功從雲端同步最新紀錄！");
         }
-    })
-    .catch(err => {
-        console.error("雲端讀取失敗，使用本機紀錄:", err);
-        loadHistoryFromStorage();
-        renderHistoryRecords();
-    });
-}
 
         function switchTab(tab) {
             document.getElementById('tab-new-form').classList.add('hidden');
             document.getElementById('tab-history').classList.add('hidden');
 
-            document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1";
-            document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1 relative";
+            document.getElementById('btn-tab-form').className = "px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1";
+            document.getElementById('btn-tab-history').className = "px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800 transition flex items-center space-x-1 relative";
 
             if(tab === 'new-form') {
                 document.getElementById('tab-new-form').classList.remove('hidden');
-                document.getElementById('btn-tab-form').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1";
+                document.getElementById('btn-tab-form').className = "px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1";
             } else if(tab === 'history') {
                 document.getElementById('tab-history').classList.remove('hidden');
-                document.getElementById('btn-tab-history').className = "px-3 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1 relative";
-                
+                document.getElementById('btn-tab-history').className = "px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-teal-600 text-white transition flex items-center space-x-1 relative";
                 fetchHistoryFromCloud();
             }
         }
@@ -2051,11 +1829,8 @@ function fetchHistoryFromCloud() {
             currentFilterState = state;
             ['all', 'pending', 'signed'].forEach(s => {
                 const btn = document.getElementById(`filter-btn-${s}`);
-                if (s === state) {
-                    btn.className = "px-3 py-1.5 rounded-lg bg-slate-900 text-white transition flex items-center gap-1";
-                } else {
-                    btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition flex items-center gap-1";
-                }
+                if (s === state) btn.className = "px-3 py-1.5 rounded-lg bg-slate-900 text-white transition whitespace-nowrap";
+                else btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition whitespace-nowrap";
             });
             renderHistoryRecords();
         }
@@ -2069,12 +1844,11 @@ function fetchHistoryFromCloud() {
                 badge1.innerText = pendingCount; badge1.classList.remove('hidden');
                 badge2.innerText = pendingCount; badge2.classList.remove('hidden');
             } else {
-                badge1.classList.add('hidden');
-                badge2.classList.add('hidden');
+                badge1.classList.add('hidden'); badge2.classList.add('hidden');
             }
         }
 
-        // --- History & Batch Action Logic ---
+        // --- Render Records Table ---
         function renderHistoryRecords() {
             const tableBody = document.getElementById('history-table-body');
             const driveTree = document.getElementById('drive-folder-tree');
@@ -2085,43 +1859,42 @@ function fetchHistoryFromCloud() {
             if (currentFilterState === 'signed') filteredList = inspectionHistory.filter(r => !r.isPendingSignature);
 
             if(filteredList.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">無對應巡查紀錄。</td></tr>`;
-                driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (Drive 資料夾空空如也)</div>`;
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">無紀錄。</td></tr>`;
+                driveTree.innerHTML = `<div class="text-slate-500 italic">└─ (空)</div>`;
                 updateBatchActionBar();
                 return;
             }
 
             filteredList.forEach((rec) => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
                 
                 const isPending = rec.isPendingSignature;
                 const statusBadge = isPending 
-                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">⏳ 待簽署</span>`
-                    : `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">✓ 已簽收</span>`;
+                    ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">⏳ 待簽署</span>`
+                    : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">✓ 已簽收</span>`;
 
                 const formattedDate = rec.date ? rec.date.replace('T', ' ') : '';
-                const datePrefix = rec.date ? rec.date.slice(0,10).replace(/-/g,'') : '';
 
                 tr.innerHTML = `
-                    <td class="p-3">
+                    <td class="p-2.5 text-center">
                         <input type="checkbox" data-id="${rec.id}" onchange="updateBatchActionBar()" class="record-checkbox rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
                     </td>
-                    <td class="p-3">
+                    <td class="p-2.5">
                         <span class="font-bold font-mono text-slate-800">${rec.refNo}</span>
-                        <div class="text-xs text-slate-400">${formattedDate}</div>
+                        <div class="text-[10px] text-slate-400">${formattedDate}</div>
                     </td>
-                    <td class="p-3 font-medium text-slate-800">${rec.hospital}</td>
-                    <td class="p-3 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
-                    <td class="p-3 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
-                    <td class="p-3">${statusBadge}</td>
-                    <td class="p-3 text-slate-600"><i class="fa-solid fa-image text-slate-400 mr-1"></i>${rec.photos ? rec.photos.length : 0} 張</td>
-                    <td class="p-3 text-right">
-                        <div class="flex items-center justify-end space-x-2">
-                            <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white text-xs rounded-lg transition flex items-center">
-                                <i class="fa-solid fa-file-pdf mr-1"></i>預覽
+                    <td class="p-2.5 font-medium text-slate-800">${rec.hospital}</td>
+                    <td class="p-2.5 font-mono font-bold text-slate-700">${rec.vehiclePlate || 'N/A'}</td>
+                    <td class="p-2.5 font-mono font-bold text-teal-700">${rec.stretcherId}</td>
+                    <td class="p-2.5">${statusBadge}</td>
+                    <td class="p-2.5 text-slate-600">${rec.photos ? rec.photos.length : 0} 張</td>
+                    <td class="p-2.5 text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end space-x-1.5">
+                            <button onclick='openPdfModal(${JSON.stringify(rec).replace(/'/g, "&apos;")})' class="px-2 py-1 bg-slate-800 hover:bg-slate-900 text-white text-[11px] rounded transition">
+                                預覽
                             </button>
-                            <button onclick="deleteInspectionRecord('${rec.id}', '${rec.refNo}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-lg transition border border-rose-200">
+                            <button onclick="deleteInspectionRecord('${rec.id}', '${rec.refNo}')" class="px-1.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] rounded transition border border-rose-200">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </div>
@@ -2132,8 +1905,7 @@ function fetchHistoryFromCloud() {
                 const treeItem = document.createElement('div');
                 treeItem.innerHTML = `
                     <div class="text-teal-300">└─ 📁 2026年 / 📁 ${rec.hospital}</div>
-                    <div class="pl-6 text-amber-300">└─ 📁 ${datePrefix}_車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
-                    <div class="pl-12 text-slate-400">├── 📄 檢查報告_${rec.stretcherId}.pdf ${isPending ? '(待簽名)' : ''}</div>
+                    <div class="pl-4 text-amber-300">└─ 📁 車牌${rec.vehiclePlate || 'N/A'}_床號${rec.stretcherId}</div>
                 `;
                 driveTree.appendChild(treeItem);
             });
@@ -2161,16 +1933,34 @@ function fetchHistoryFromCloud() {
             if (selectedIds.length > 0) {
                 bar.classList.remove('hidden');
                 countEl.innerText = selectedIds.length;
-
                 const hasPending = inspectionHistory.some(r => selectedIds.includes(r.id) && r.isPendingSignature);
-                if (hasPending) {
-                    batchSignBtn.classList.remove('hidden');
-                } else {
-                    batchSignBtn.classList.add('hidden');
-                }
+                if (hasPending) batchSignBtn.classList.remove('hidden');
+                else batchSignBtn.classList.add('hidden');
             } else {
                 bar.classList.add('hidden');
             }
+        }
+
+        // --- 雲端同步刪除紀錄 ---
+        function deleteInspectionRecord(recordId, refNo) {
+            if (!confirm(`確定要刪除巡查報告 [${refNo}] 嗎？`)) return;
+
+            showToast("正在通知雲端刪除紀錄...");
+            fetch(GAS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "delete", refNo: refNo })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    showToast(`已成功刪除報告 [${refNo}]`);
+                    fetchHistoryFromCloud();
+                } else {
+                    showToast("雲端刪除失敗: " + data.message, "error");
+                }
+            })
+            .catch(() => showToast("無法連接雲端，刪除失敗", "error"));
         }
 
         // --- 批量集中簽名 Modal ---
@@ -2179,13 +1969,13 @@ function fetchHistoryFromCloud() {
             const pendingSelected = inspectionHistory.filter(r => selectedIds.includes(r.id) && r.isPendingSignature);
 
             if (pendingSelected.length === 0) {
-                showToast("所選項目中沒有「待簽署」的報告", "error");
+                showToast("請選擇「待簽署」的報告", "error");
                 return;
             }
 
             document.getElementById('batch-sign-count').innerText = pendingSelected.length;
             const previewEl = document.getElementById('batch-sign-list-preview');
-            previewEl.innerHTML = pendingSelected.map(r => `<span class="bg-slate-200 px-1.5 py-0.5 rounded">#${r.refNo} (${r.stretcherId})</span>`).join('');
+            previewEl.innerHTML = pendingSelected.map(r => `<span class="bg-slate-200 px-1 py-0.2 rounded">#${r.refNo}</span>`).join(' ');
 
             document.getElementById('batch-signer-name').value = '';
             document.getElementById('batch-signer-dept-select').value = '非緊急服務 - 管工';
@@ -2203,22 +1993,19 @@ function fetchHistoryFromCloud() {
 
         function handleBatchDeptSelectChange(val) {
             const customInput = document.getElementById('batch-signer-dept-custom');
-            if (val === 'custom') {
-                customInput.classList.remove('hidden');
-            } else {
-                customInput.classList.add('hidden');
-            }
+            if (val === 'custom') customInput.classList.remove('hidden');
+            else customInput.classList.add('hidden');
         }
 
         function confirmBatchSign() {
             if (isCanvasBlank(batchSignatureCanvas)) {
-                showToast("請先完成電子簽名！", "error");
+                showToast("請先完成簽名！", "error");
                 return;
             }
 
             const name = document.getElementById('batch-signer-name').value.trim();
             if (!name) {
-                showToast("請輸入客戶 / 驗收代表姓名", "error");
+                showToast("請輸入代表姓名", "error");
                 return;
             }
 
@@ -2227,7 +2014,9 @@ function fetchHistoryFromCloud() {
             const signatureData = batchSignatureCanvas.toDataURL('image/png');
 
             const selectedIds = getSelectedRecordIds();
-            let updatedCount = 0;
+            let promises = [];
+
+            showToast("正在批量同步寫入簽名...");
 
             inspectionHistory.forEach(rec => {
                 if (selectedIds.includes(rec.id) && rec.isPendingSignature) {
@@ -2235,30 +2024,25 @@ function fetchHistoryFromCloud() {
                     rec.signerName = name;
                     rec.signerDept = dept;
                     rec.signature = signatureData;
-                    updatedCount++;
 
-                    // 修正：以 text/plain;charset=utf-8 傳送 JSON 給 GAS
-                    if (GAS_URL) {
+                    promises.push(
                         fetch(GAS_URL, {
                             method: "POST",
                             headers: { "Content-Type": "text/plain;charset=utf-8" },
                             body: JSON.stringify(rec)
                         })
-                        .then(res => res.json())
-                        .then(data => console.log("批量簽名傳送結果:", data))
-                        .catch(e => console.error("批量 GAS 傳送失敗:", e));
-                    }
+                    );
                 }
             });
 
-            saveHistoryToStorage();
-            closeBatchSignModal();
-            renderHistoryRecords();
-            updatePendingBadges();
-            showToast(`已成功為 ${updatedCount} 份報告寫入批量集中簽收！`);
+            Promise.all(promises).then(() => {
+                closeBatchSignModal();
+                showToast(`已完成批量簽署！`);
+                fetchHistoryFromCloud();
+            });
         }
 
-        // --- 批量下載真實 PDF Zip 包 ---
+        // --- 批量下載真實 PDF Zip 包 (包含延遲渲染防空白機制) ---
         async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
@@ -2267,103 +2051,39 @@ function fetchHistoryFromCloud() {
             const zip = new JSZip();
             const renderOffscreen = document.getElementById('pdf-render-offscreen');
 
-            showToast(`正在渲染生成 ${selectedRecords.length} 份真實 PDF 報告...`);
+            showToast(`正在生成 ${selectedRecords.length} 份 PDF 檔...`);
 
             for (let i = 0; i < selectedRecords.length; i++) {
                 const rec = selectedRecords[i];
                 renderOffscreen.innerHTML = generatePdfHtmlString(rec);
+                
+                // 等待圖片繪製完成
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 const opt = {
-                    margin:       8,
+                    margin:       4,
                     filename:     `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true },
+                    image:        { type: 'jpeg', quality: 0.95 },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
                 try {
                     const pdfBlob = await html2pdf().set(opt).from(renderOffscreen).output('blob');
                     zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`, pdfBlob);
-                } catch (err) {
-                    console.error("PDF 渲染出錯:", err);
-                }
+                } catch (err) {}
             }
 
             renderOffscreen.innerHTML = '';
-            showToast("PDF 檔生成完成，正在進行 Zip 打包壓縮...");
+            showToast("正在進行 Zip 打包下載...");
 
             zip.generateAsync({ type: "blob" }).then(function(content) {
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(content);
                 a.download = `擔架床巡查報告批量導出_${new Date().toISOString().slice(0,10)}.zip`;
                 a.click();
-                showToast("真實 PDF Zip 打包下載完成！");
+                showToast("下載完成！");
             });
-        }
-
-        // --- 批量 Email 寄送 ---
-        function openBatchEmailModal() {
-            const selectedIds = getSelectedRecordIds();
-            if (selectedIds.length === 0) return;
-            document.getElementById('batch-email-modal').classList.remove('hidden');
-        }
-
-        function closeBatchEmailModal() {
-            document.getElementById('batch-email-modal').classList.add('hidden');
-        }
-
-        async function sendBatchEmail() {
-            const email = document.getElementById('batch-email-target').value.trim();
-            if (!email) {
-                showToast("請輸入電郵地址", "error");
-                return;
-            }
-
-            const selectedIds = getSelectedRecordIds();
-            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-            const subject = document.getElementById('batch-email-subject').value;
-            const customBody = document.getElementById('batch-email-body').value;
-
-            batchDownloadPdfs();
-
-            let itemsSummary = selectedRecords.map(r => `• 報告編號: #${r.refNo} | 車牌: ${r.vehiclePlate || 'N/A'} | 床號: ${r.stretcherId} | 狀態: ${r.overallStatus}`).join('\n');
-            let fullBody = `${customBody}\n\n【本次寄送之巡查報告清單（共 ${selectedRecords.length} 份）】\n${itemsSummary}\n\n（註：系統已自動將對應 PDF 報告下載至閣下裝置，請於開啟的郵件程式中點擊夾帶附件即可。）`;
-
-            const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
-            
-            closeBatchEmailModal();
-            setTimeout(() => {
-                window.location.href = mailtoUrl;
-            }, 800);
-        }
-
-        function deleteInspectionRecord(recordId, refNo) {
-            if (!confirm(`確定要刪除巡查報告 [${refNo}] 嗎？此動作無法復原。`)) return;
-
-            inspectionHistory = inspectionHistory.filter(rec => rec.id !== recordId);
-            saveHistoryToStorage();
-            renderHistoryRecords();
-            updatePendingBadges();
-            showToast(`已成功刪除報告 [${refNo}]`);
-        }
-
-        function saveHistoryToStorage() {
-            try {
-                localStorage.setItem('stretcher_inspections', JSON.stringify(inspectionHistory));
-            } catch(e) {}
-        }
-
-        function loadHistoryFromStorage() {
-            try {
-                const data = localStorage.getItem('stretcher_inspections');
-                if(data) inspectionHistory = JSON.parse(data);
-            } catch(e) {
-                inspectionHistory = [];
-            }
-        }
-
-        function toggleConfigModal() {
-            document.getElementById('config-modal').classList.toggle('hidden');
         }
 
         function showToast(message, type = "success") {
@@ -2373,9 +2093,9 @@ function fetchHistoryFromCloud() {
 
             toastMsg.innerText = message;
             if(type === 'error') {
-                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-xl";
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-base sm:text-xl";
             } else {
-                toastIcon.className = "fa-solid fa-circle-check text-teal-400 text-xl";
+                toastIcon.className = "fa-solid fa-circle-check text-teal-400 text-base sm:text-xl";
             }
 
             toast.classList.remove('translate-y-20', 'opacity-0');
