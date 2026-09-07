@@ -20,27 +20,28 @@
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .canvas-container { touch-action: none; }
     
-    /* PDF A4 單頁精確對齊樣式 */
+    /* PDF A4 專業大字體清晰版樣式 */
     .pdf-compact-container {
-        font-size: 10px !important;
-        line-height: 1.25 !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
         box-sizing: border-box !important;
         max-width: 100% !important;
         margin: 0 auto !important;
-        padding: 4px !important;
+        padding: 8px !important;
+        color: #1e293b !important;
     }
-    .pdf-compact-container h1 { font-size: 16px !important; }
+    .pdf-compact-container h1 { font-size: 18px !important; }
     .pdf-compact-container table td, .pdf-compact-container table th {
-        padding-top: 3px !important;
-        padding-bottom: 3px !important;
-        padding-left: 6px !important;
-        padding-right: 6px !important;
+        padding-top: 5px !important;
+        padding-bottom: 5px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
     }
 
     @media print {
         @page {
             size: A4 portrait;
-            margin: 5mm;
+            margin: 6mm;
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -117,7 +118,7 @@
         <!-- TAB 1: New Inspection Form -->
         <div id="tab-new-form" class="space-y-4 sm:space-y-6">
             
-            <!-- Progress Stepper (Mobile Optimized) -->
+            <!-- Progress Stepper -->
             <div class="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200">
                 <div class="flex items-center justify-between max-w-3xl mx-auto">
                     <div class="flex items-center space-x-1 sm:space-x-2 step-indicator active" id="step-ind-1">
@@ -152,7 +153,7 @@
                             <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 1: 醫院、車牌與設備資料</h2>
                             <p class="text-[11px] sm:text-xs text-slate-500">選取醫院 ➔ 車牌號碼 ➔ 擔架床編號</p>
                         </div>
-                        <span class="bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-full font-medium">#<span id="form-ref-no">NT-INS-26-00001</span></span>
+                        <span class="bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-full font-bold">#<span id="form-ref-no">同步中...</span></span>
                     </div>
 
                     <!-- OCR Label Scanner Banner -->
@@ -236,7 +237,7 @@
                     </div>
                 </div>
 
-                <!-- STEP 2: Inspection Checklist (Mobile Friendly Grid) -->
+                <!-- STEP 2: Inspection Checklist -->
                 <div id="step-2" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6 hidden">
                     <div class="border-b border-slate-100 pb-3 flex flex-wrap justify-between items-center gap-2">
                         <div>
@@ -271,7 +272,7 @@
                 <div id="step-3" class="step-content bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4 sm:space-y-6 hidden">
                     <div class="border-b border-slate-100 pb-3">
                         <h2 class="text-base sm:text-lg font-bold text-slate-900">Step 3: 現場相片記錄</h2>
-                        <p class="text-[11px] sm:text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片（自動智慧壓縮）</p>
+                        <p class="text-[11px] sm:text-xs text-slate-500">拍攝或上傳損壞/檢查位置相片</p>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -426,7 +427,7 @@
                     </div>
                 </div>
 
-                <!-- Records Table (Mobile responsive wrapper) -->
+                <!-- Records Table -->
                 <div class="overflow-x-auto -mx-4 sm:mx-0">
                     <div class="inline-block min-w-full align-middle">
                         <table class="min-w-full text-left text-xs sm:text-sm">
@@ -515,8 +516,8 @@
         </div>
     </div>
 
-    <!-- Hidden Container for Off-screen PDF Rendering -->
-    <div id="pdf-render-offscreen" class="fixed left-[-9999px] top-[-9999px] w-[790px] bg-white p-4"></div>
+    <!-- Hidden Container for Off-screen PDF Rendering (修復：使用可渲染但半透明的專用容器) -->
+    <div id="pdf-render-offscreen" style="position: fixed; left: 0; top: 0; width: 790px; z-index: -9999; opacity: 0.01; background: #fff; pointer-events: none;"></div>
 
     <!-- Stretcher Reassignment Alert Modal -->
     <div id="reassign-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -627,7 +628,7 @@
 
     <!-- PDF Report Preview Modal -->
     <div id="pdf-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center no-print">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-file-pdf text-teal-400"></i>
@@ -727,32 +728,28 @@
             {
                 category: "1. 輪軸及煞車系統 (Wheel & Brake)",
                 items: [
-                    { id: "item_wheel_roll", name: "腳輪順暢度 (無磨損卡死)" },
-                    { id: "item_brake_lock", name: "中央煞車鎖定功能 (不滑移)" },
-                    { id: "item_steer_lock", name: "方向鎖定功能 (Steering Lock)" }
+                    { id: "item_wheel_roll", name: "腳輪順暢度 (無異響 / 無磨損卡死 / 轉向功能切換順暢)" },
+                    { id: "item_brake_lock", name: "剎車系統響應鎖定 (踩下到車踏板及推動車床，確認四個車輪完全鎖死，無打滑、無單側失效)" }
                 ]
             },
             {
-                category: "2. 床體升降與結構 (Hydraulic & Frame)",
+                category: "2. 床體升降與結構",
                 items: [
-                    { id: "item_height_adj", name: "液壓升降機制 (High-Low)" },
-                    { id: "item_trend_tilt", name: "頭高/腳高傾斜 (Trendelenburg)" },
-                    { id: "item_backrest", name: "背板升降氣壓棒" }
+                    { id: "item_height_adj", name: "升降機制 (測試床身最高與最低極限；檢查升降是否順暢，腳踩時有否空泡現象)" },
+                    { id: "item_trend_tilt", name: "頭高腳低傾斜 (測試功能是否正常)" },
+                    { id: "item_backrest", name: "背板角度調節 (操作背部升降把手，確認彈簧支撐有力，在任意角度釋放把手後均能穩固鎖定，無卡頓)" },
+                    { id: "item_knee_adj", name: "腿板調節 (操作腿板升降把手，確認是否順暢、無卡頓)" },
+                    { id: "item_side_rails", name: "兩側護欄及上鎖機制 (拉起兩側護欄，手動施加外力晃動，確認鎖定機構無鬆脫或自動解鎖現象)" },
+                    { id: "item_frame_structure", name: "整體框架與焊接點 (目視檢查主框架、底座有無變形，關鍵承重焊接點有否鏽蝕或裂痕)" },
+                    { id: "item_fasteners", name: "主結構緊固件與螺絲狀態 (目視檢查關鍵受力部位螺絲、螺帽及定位銷有否鬆脫、位移或缺失；檢查擔架床有否非原廠零件或私自維修痕跡，確保結構未遭私自變更)" }
                 ]
             },
             {
-                category: "3. 安全護欄與床墊 (Rails & Mattress)",
+                category: "3. 附屬配件",
                 items: [
-                    { id: "item_side_rails", name: "兩側折疊護欄 (Side Rails)" },
-                    { id: "item_mattress_cond", name: "防液體床墊皮套 (消毒良好)" },
-                    { id: "item_belts", name: "病患固定安全帶" }
-                ]
-            },
-            {
-                category: "4. 附屬配件 (Accessories)",
-                items: [
-                    { id: "item_iv_pole", name: "點滴架 / IV Pole 伸縮" },
-                    { id: "item_oxygen_holder", name: "氧氣筒固定架" }
+                    { id: "item_mattress_cond", name: "床墊 (檢查有無破損)" },
+                    { id: "item_belts", name: "病患固定安全帶 (檢查有無斷裂、脫線，扣夾鎖緊力是否正常)" },
+                    { id: "item_car_lock", name: "車廂床扣系統 (檢查床扣手柄、固定螺栓、螺帽或定位銷有無鬆動或缺失，夾架有否變形)" }
                 ]
             }
         ];
@@ -777,10 +774,9 @@
             renderChecklist();
             initSignaturePad();
             initBatchSignaturePad();
-            generateRefNo();
             renderHospitalOptions();
             
-            // 從雲端載入最新歷史紀錄與自訂清單
+            // 從雲端載入最新歷史紀錄，並據此計算下一個正確的編號
             fetchHistoryFromCloud();
 
             window.addEventListener('resize', () => {
@@ -798,10 +794,23 @@
             }
         }
 
-        function generateRefNo() {
-            let seq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
+        // 自動從雲端/歷史紀錄計算最大的流水號
+        function calculateNextRefNo() {
+            let maxSeq = 0;
             const year2 = new Date().getFullYear().toString().slice(-2);
-            const paddedSeq = String(seq).padStart(5, '0');
+
+            inspectionHistory.forEach(rec => {
+                if (rec.refNo && rec.refNo.startsWith(`NT-INS-${year2}-`)) {
+                    const seqStr = rec.refNo.replace(`NT-INS-${year2}-`, '');
+                    const seqNum = parseInt(seqStr, 10);
+                    if (!isNaN(seqNum) && seqNum > maxSeq) {
+                        maxSeq = seqNum;
+                    }
+                }
+            });
+
+            const nextSeq = maxSeq + 1;
+            const paddedSeq = String(nextSeq).padStart(5, '0');
             const ref = `NT-INS-${year2}-${paddedSeq}`;
             const el = document.getElementById('form-ref-no');
             if(el) el.innerText = ref;
@@ -1107,7 +1116,7 @@
             checkStretcherOwnershipAndPrompt(sn, () => showToast(`已選擇床號: ${sn}`));
         }
 
-        // --- Checklist Management (Sync to Cloud) ---
+        // --- Checklist Management ---
         function loadChecklistCategories() {
             try {
                 const saved = localStorage.getItem('stretcher_custom_checklist');
@@ -1597,8 +1606,6 @@
                 .then(() => {
                     progressBar.style.width = '100%';
                     overlay.classList.add('hidden');
-                    let currentSeq = parseInt(localStorage.getItem('stretcher_ref_seq') || '1', 10);
-                    localStorage.setItem('stretcher_ref_seq', (currentSeq + 1).toString());
 
                     if(isPending) {
                         showToast(`已成功暫存報告 #${refNo}！`);
@@ -1607,7 +1614,6 @@
                         openPdfModal(record);
                         showToast("成功提交並完成 Drive 歸檔！");
                     }
-                    generateRefNo();
                     fetchHistoryFromCloud();
                 })
                 .catch(err => {
@@ -1617,7 +1623,7 @@
             }
         }
 
-        // --- Generate PDF HTML (Strict Single Page A4 + Official Footer) ---
+        // --- Generate PDF HTML (字體加大與排版調優版) ---
         function generatePdfHtmlString(record) {
             const categorizedChecklist = {};
             if (record.checklist && record.checklist.length > 0) {
@@ -1632,15 +1638,15 @@
             for (const [catName, items] of Object.entries(categorizedChecklist)) {
                 let itemsRows = '';
                 items.forEach(item => {
-                    let badgeClass = "bg-slate-100 text-slate-700";
+                    let badgeClass = "bg-slate-100 text-slate-800 font-medium";
                     if (item.status === 'Pass') badgeClass = "bg-emerald-100 text-emerald-800 font-bold";
                     if (item.status === 'Issue') badgeClass = "bg-rose-100 text-rose-800 font-bold";
 
                     itemsRows += `
-                        <tr class="border-b border-slate-100 text-[10px]">
-                            <td class="py-1 px-2 text-slate-800 pl-4">${item.name}</td>
-                            <td class="py-1 px-2 text-center w-24 whitespace-nowrap">
-                                <span class="px-1.5 py-0.2 rounded inline-block whitespace-nowrap ${badgeClass}">
+                        <tr class="border-b border-slate-100 text-[11px]">
+                            <td class="py-1.5 px-3 text-slate-800 pl-4 font-normal">${item.name}</td>
+                            <td class="py-1.5 px-3 text-center w-28 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded inline-block whitespace-nowrap ${badgeClass}">
                                     ${item.status === 'Pass' ? '正常 ✓' : (item.status === 'Issue' ? '異常需跟進 ✗' : 'N/A')}
                                 </span>
                             </td>
@@ -1649,8 +1655,8 @@
                 });
 
                 checklistHtml += `
-                    <tr class="bg-slate-100/80 text-slate-800 text-[10px] font-bold border-b border-slate-200">
-                        <td class="py-1 px-2" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1 text-teal-600"></i>${catName}</td>
+                    <tr class="bg-slate-100/90 text-slate-800 text-[11px] font-bold border-b border-slate-200">
+                        <td class="py-1.5 px-3" colspan="2"><i class="fa-solid fa-screwdriver-wrench mr-1.5 text-teal-600"></i>${catName}</td>
                     </tr>
                     ${itemsRows}
                 `;
@@ -1658,14 +1664,14 @@
 
             let photosHtml = '';
             if (record.photos && record.photos.length > 0) {
-                photosHtml = `<div class="mt-2 border-t border-slate-200 pt-1.5">
-                    <h3 class="font-bold text-[10px] text-slate-700 uppercase mb-1">現場檢驗相片 (${record.photos.length} 張)</h3>
-                    <div class="grid grid-cols-3 gap-2">`;
-                record.photos.slice(0, 3).forEach(p => { // 控制最多呈現 3 張精簡擺放
+                photosHtml = `<div class="mt-3 border-t border-slate-200 pt-2">
+                    <h3 class="font-bold text-xs text-slate-700 uppercase mb-1.5">現場檢驗相片紀錄 (${record.photos.length} 張)</h3>
+                    <div class="grid grid-cols-3 gap-2.5">`;
+                record.photos.slice(0, 3).forEach(p => {
                     photosHtml += `
-                        <div class="border border-slate-200 p-1 rounded bg-slate-50 text-center">
-                            <img src="${p.dataUrl}" class="h-14 w-full object-cover rounded mb-0.5">
-                            <p class="text-[9px] font-bold text-slate-800 truncate">${p.title || '現場相片'}</p>
+                        <div class="border border-slate-200 p-1.5 rounded-lg bg-slate-50 text-center">
+                            <img src="${p.dataUrl}" class="h-16 w-full object-cover rounded mb-1">
+                            <p class="text-[10px] font-bold text-slate-800 truncate">${p.title || '現場照片'}</p>
                         </div>
                     `;
                 });
@@ -1673,48 +1679,48 @@
             }
 
             return `
-                <div class="pdf-compact-container max-w-2xl mx-auto space-y-2.5 font-sans text-slate-800">
+                <div class="pdf-compact-container max-w-3xl mx-auto space-y-3 font-sans text-slate-800">
                     <!-- Header -->
                     <div class="flex justify-between items-start border-b-2 border-slate-900 pb-2">
                         <div>
-                            <h1 class="text-base font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
-                            <p class="text-[10px] text-slate-500 font-mono">Stretcher Maintenance & Safety Inspection Report</p>
+                            <h1 class="text-lg font-black text-slate-900 tracking-tight">擔架床定期維修保養與安全檢查報告</h1>
+                            <p class="text-xs text-slate-500 font-mono mt-0.5">Stretcher Maintenance & Safety Inspection Report</p>
                         </div>
                         <div class="text-right">
-                            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-0.5">
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${record.overallStatus === '檢查合格' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'} mb-0.5">
                                 ${record.overallStatus || '檢查合格'}
                             </span>
-                            <p class="text-[10px] font-mono text-slate-500"># ${record.refNo}</p>
+                            <p class="text-xs font-mono font-bold text-slate-600"># ${record.refNo}</p>
                         </div>
                     </div>
 
                     <!-- Meta Table -->
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[10px] space-y-1">
-                        <div class="flex justify-between items-center border-b border-slate-200 pb-1">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
                             <div>
                                 <span class="text-slate-500">醫院 / 機構：</span>
-                                <strong class="text-slate-900 font-bold ml-1">${record.hospital}</strong>
+                                <strong class="text-slate-900 font-bold text-xs ml-1">${record.hospital}</strong>
                             </div>
-                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded font-bold font-mono text-[9px]">
+                            <div class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded font-bold font-mono text-xs">
                                 型號: IRELAND DW-AL016
                             </div>
                         </div>
-                        <div class="grid grid-cols-4 gap-1 pt-0.5">
-                            <div><span class="text-slate-500">車牌:</span> <strong class="text-teal-700 font-mono block">${record.vehiclePlate || 'N/A'}</strong></div>
-                            <div><span class="text-slate-500">床號:</span> <strong class="text-slate-900 font-mono block">${record.stretcherId}</strong></div>
-                            <div><span class="text-slate-500">檢查人員:</span> <strong class="text-slate-900 block">${record.inspector || 'Chris Chong'}</strong></div>
-                            <div><span class="text-slate-500">日期時間:</span> <strong class="text-slate-900 block">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
+                        <div class="grid grid-cols-4 gap-2 pt-0.5">
+                            <div><span class="text-slate-500">車牌:</span> <strong class="text-teal-700 font-mono font-bold block mt-0.5">${record.vehiclePlate || 'N/A'}</strong></div>
+                            <div><span class="text-slate-500">床號:</span> <strong class="text-slate-900 font-mono font-bold block mt-0.5">${record.stretcherId}</strong></div>
+                            <div><span class="text-slate-500">檢查代表:</span> <strong class="text-slate-900 block mt-0.5">${record.inspector || 'Chris Chong'}</strong></div>
+                            <div><span class="text-slate-500">日期時間:</span> <strong class="text-slate-900 block mt-0.5">${record.date ? record.date.replace('T', ' ') : ''}</strong></div>
                         </div>
                     </div>
 
-                    <!-- Checklist -->
+                    <!-- Checklist Table -->
                     <div>
-                        <h3 class="font-bold text-[10px] text-slate-700 uppercase mb-1">檢查項目測試結果 SUMMARY</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase mb-1">檢查項目測試結果 SUMMARY</h3>
                         <table class="w-full text-left border border-slate-200 rounded-lg overflow-hidden">
                             <thead>
-                                <tr class="bg-slate-800 text-white text-[10px] font-bold">
-                                    <th class="py-1 px-2">檢測分類與項目</th>
-                                    <th class="py-1 px-2 text-center w-24 whitespace-nowrap">結果</th>
+                                <tr class="bg-slate-800 text-white text-xs font-bold">
+                                    <th class="py-1.5 px-3">檢測分類與項目</th>
+                                    <th class="py-1.5 px-3 text-center w-28 whitespace-nowrap">結果</th>
                                 </tr>
                             </thead>
                             <tbody>${checklistHtml}</tbody>
@@ -1724,32 +1730,34 @@
                     ${photosHtml}
 
                     <!-- Footer & Signature Section -->
-                    <div class="border-t border-slate-200 pt-2 grid grid-cols-2 gap-3">
-                        <div class="space-y-1 text-[10px]">
-                            <p class="text-slate-500 text-[9px]">特別說明 / 備註:</p>
-                            <div class="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 text-[9px] min-h-[30px]">
-                                ${record.notes || '無特別備註。'}
+                    <div class="border-t border-slate-200 pt-2.5 grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5 text-xs">
+                            <div>
+                                <p class="text-slate-500 mb-0.5 text-[11px]">特別說明 / 備註:</p>
+                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-[11px] min-h-[36px]">
+                                    ${record.notes || '無特別備註。'}
+                                </div>
                             </div>
-                            <div class="p-1.5 bg-slate-50 border border-slate-200 rounded text-[8.5px] text-slate-500 leading-tight">
-                                <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明】</p>
-                                <p>本報告經授權代表簽署，即代表已核實報告內容無誤，並確認該擔架床處於良好及正常運作狀態。</p>
+                            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-500 leading-relaxed">
+                                <p class="font-bold text-slate-700 mb-0.5">【服務完成與確認聲明 / Completion Statement】</p>
+                                <p>本檢查報告經客戶授權代表完成電子簽署，即代表客戶已核實報告內容無誤，並確認本報告所列之擔架床於交收及簽署當刻處於良好且正常之運作狀態。本報告紀錄由系統自動生成，具法律確認效力。</p>
                             </div>
                         </div>
 
-                        <div class="space-y-1 text-right text-[10px]">
-                            <p class="text-slate-500 text-[9px]">客戶 / 醫院代表電子簽收:</p>
+                        <div class="space-y-1 text-right text-xs">
+                            <p class="text-slate-500 text-[11px]">客戶 / 醫院代表電子簽收:</p>
                             ${record.signature ? `
-                                <div class="inline-block border border-slate-300 rounded bg-slate-50 p-0.5">
-                                    <img src="${record.signature}" class="h-10 object-contain inline-block">
+                                <div class="inline-block border border-slate-300 rounded-lg bg-slate-50 p-1">
+                                    <img src="${record.signature}" class="h-12 object-contain inline-block">
                                 </div>
-                            ` : `<div class="h-10 flex items-center justify-end font-bold text-amber-600 italic">（待客戶簽署）</div>`}
-                            <p class="font-bold text-slate-800 text-[10px]">${record.signerName} (${record.signerDept || '驗收人員'})</p>
+                            ` : `<div class="h-12 flex items-center justify-end font-bold text-amber-600 text-xs italic">（待現場客戶簽署）</div>`}
+                            <p class="font-bold text-slate-800 text-xs mt-1">${record.signerName} (${record.signerDept || '驗收人員'})</p>
                         </div>
                     </div>
 
                     <!-- Official Company Name Footer -->
-                    <div class="border-t border-slate-300 pt-1.5 text-center">
-                        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">
+                    <div class="border-t border-slate-300 pt-2 text-center mt-2">
+                        <p class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                             Issued by New Tech Motor Engineering Limited
                         </p>
                     </div>
@@ -1781,7 +1789,7 @@
             resetFormForNextInspection();
         }
 
-        // 從雲端 Google Sheet 同步歷史紀錄與自訂清單
+        // 從雲端同步歷史紀錄並發號編號
         function fetchHistoryFromCloud() {
             const tableBody = document.getElementById('history-table-body');
             if (tableBody) {
@@ -1793,7 +1801,6 @@
             .then(data => {
                 if (data.status === "success") {
                     inspectionHistory = data.records || [];
-                    // 若雲端有最新的全域自訂點檢清單，同步更正本地
                     if (data.customChecklist) {
                         activeChecklistCategories = data.customChecklist;
                         saveChecklistCategories(false);
@@ -1801,6 +1808,8 @@
                     }
                     renderHistoryRecords();
                     updatePendingBadges();
+                    // ✅ 核心修復：從雲端 Sheet 計算並自動鎖定下一個正確的流水號編號
+                    calculateNextRefNo();
                 }
             })
             .catch(err => {
@@ -2042,7 +2051,7 @@
             });
         }
 
-        // --- 批量下載真實 PDF Zip 包 (包含延遲渲染防空白機制) ---
+        // --- 批量下載真實 PDF Zip 包 (修復版：加入 100ms 異步等待與非極端隱藏渲染區) ---
         async function batchDownloadPdfs() {
             const selectedIds = getSelectedRecordIds();
             if (selectedIds.length === 0) return;
@@ -2057,13 +2066,13 @@
                 const rec = selectedRecords[i];
                 renderOffscreen.innerHTML = generatePdfHtmlString(rec);
                 
-                // 等待圖片繪製完成
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // 關鍵修復：給予瀏覽器 100ms 進行渲染與圖片加載，避免 html2pdf 擷取空白
+                await new Promise(resolve => setTimeout(resolve, 150));
 
                 const opt = {
-                    margin:       4,
+                    margin:       5,
                     filename:     `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.95 },
+                    image:        { type: 'jpeg', quality: 0.98 },
                     html2canvas:  { scale: 2, useCORS: true, logging: false },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
@@ -2071,11 +2080,13 @@
                 try {
                     const pdfBlob = await html2pdf().set(opt).from(renderOffscreen).output('blob');
                     zip.file(`檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`, pdfBlob);
-                } catch (err) {}
+                } catch (err) {
+                    console.error("PDF 打包失敗:", err);
+                }
             }
 
             renderOffscreen.innerHTML = '';
-            showToast("正在進行 Zip 打包下載...");
+            showToast("正在打包 Zip 壓縮檔...");
 
             zip.generateAsync({ type: "blob" }).then(function(content) {
                 const a = document.createElement("a");
