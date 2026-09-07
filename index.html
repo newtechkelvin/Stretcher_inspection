@@ -2046,67 +2046,80 @@
             });
         }
 
-        // ✅ 徹底解決空白頁與語法錯誤的直接渲染下載函數
-        async function batchDownloadPdfs() {
-            const selectedIds = getSelectedRecordIds();
-            if (selectedIds.length === 0) {
-                showToast("請先勾選要下載的報告", "error");
-                return;
+       // ✅ 徹底修復全空白問題：採用實體可見區域渲染（與預覽 Modal 機制完全一致）
+async function batchDownloadPdfs() {
+    const selectedIds = getSelectedRecordIds();
+    if (selectedIds.length === 0) {
+        showToast("請先勾選要下載的報告", "error");
+        return;
+    }
+
+    const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
+    showToast(`開始下載 ${selectedRecords.length} 份 PDF...`);
+
+    for (let i = 0; i < selectedRecords.length; i++) {
+        const rec = selectedRecords[i];
+        const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
+
+        // 1. 建立實體渲染容器，固定在視窗左上角（確保 html2canvas 100% 抓得到像素）
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '0px';
+        tempDiv.style.top = '0px';
+        tempDiv.style.width = '794px';
+        tempDiv.style.zIndex = '99999'; // 置於最上層確保獲得瀏覽器 GPU 渲染
+        tempDiv.style.background = '#ffffff';
+        tempDiv.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+        tempDiv.innerHTML = generatePdfHtmlString(rec);
+        document.body.appendChild(tempDiv);
+
+        // 2. 等待 DOM 繪製與圖片加載（預留 400ms 讓瀏覽器做 Layout & Reflow）
+        const images = tempDiv.querySelectorAll('img');
+        const imgPromises = Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+        });
+        await Promise.all(imgPromises);
+        await new Promise(resolve => setTimeout(resolve, 400));
+
+        // 3. 設定 html2pdf 參數，指定以該 DOM 的實際高度與寬度進行繪製
+        const opt = {
+            margin:       [5, 5, 5, 5],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: 794
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        try {
+            // 4. 執行轉檔與下載
+            await html2pdf().set(opt).from(tempDiv).save();
+            showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
+        } catch (err) {
+            console.error("PDF 導出出錯:", err);
+            showToast(`下載失敗: ${fileName}`, "error");
+        } finally {
+            // 5. 轉檔完成後立即移除臨時容器
+            if (document.body.contains(tempDiv)) {
+                document.body.removeChild(tempDiv);
             }
-
-            const selectedRecords = inspectionHistory.filter(r => selectedIds.includes(r.id));
-            showToast(`開始下載 ${selectedRecords.length} 份 PDF...`);
-
-            for (let i = 0; i < selectedRecords.length; i++) {
-                const rec = selectedRecords[i];
-                const fileName = `檢查報告_${rec.refNo}_床號${rec.stretcherId}.pdf`;
-
-                // 1. 建立一個可見但定位在螢幕外的臨時實體容器
-                const tempDiv = document.createElement('div');
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                tempDiv.style.top = '0px';
-                tempDiv.style.width = '794px'; // 固定 A4 寬度
-                tempDiv.style.background = '#ffffff';
-                tempDiv.innerHTML = generatePdfHtmlString(rec);
-                document.body.appendChild(tempDiv);
-
-                // 2. 等待 300ms 讓瀏覽器完全完成 DOM 與 CSS 渲染
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                const opt = {
-                    margin:       [8, 5, 8, 5],
-                    filename:     fileName,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true, 
-                        logging: false,
-                        backgroundColor: '#ffffff',
-                        width: 794,
-                        windowWidth: 794
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                try {
-                    // 3. 執行轉換並觸發下載
-                    await html2pdf().set(opt).from(tempDiv).save();
-                    showToast(`已成功下載 (${i + 1}/${selectedRecords.length}): ${fileName}`);
-                } catch (err) {
-                    console.error("PDF 導出出錯:", err);
-                    showToast(`下載失敗: ${fileName}`, "error");
-                } finally {
-                    // 4. 清除臨時容器
-                    document.body.removeChild(tempDiv);
-                }
-
-                // 5. 每次下載間隔 400ms，防止瀏覽器阻擋多檔案連續下載
-                await new Promise(resolve => setTimeout(resolve, 400));
-            }
-
-            showToast("所有 PDF 報告已完成下載！");
         }
+
+        // 6. 每次下載間隔 400ms
+        await new Promise(resolve => setTimeout(resolve, 400));
+    }
+
+    showToast("所有 PDF 報告已完成下載！");
+}
 
         function showToast(message, type = "success") {
             const toast = document.getElementById('toast');
